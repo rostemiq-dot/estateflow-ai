@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -7,13 +7,27 @@ type DashboardShellProps = {
 };
 
 export function DashboardShell({ children }: DashboardShellProps) {
+  const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-slate-100">
-      <Sidebar />
+      {isNavigationOpen && (
+        <button
+          aria-label="Close navigation"
+          type="button"
+          onClick={() => setIsNavigationOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-950/55 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
+      <Sidebar
+        isMobileOpen={isNavigationOpen}
+        onClose={() => setIsNavigationOpen(false)}
+      />
 
       <div className="min-w-0 flex-1">
-        <Topbar />
-        <main className="p-8">{children}</main>
+        <Topbar onOpenNavigation={() => setIsNavigationOpen(true)} />
+        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

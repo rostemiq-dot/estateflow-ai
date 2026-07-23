@@ -1,14 +1,36 @@
+import { X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { dashboardNav } from "../../features/dashboard/dashboard-nav";
 
-export function Sidebar() {
+type SidebarProps = {
+  isMobileOpen: boolean;
+  onClose: () => void;
+};
+
+export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
   return (
-    <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-950 px-5 py-6">
-      <div className="mb-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">
-          EstateFlow
-        </p>
-        <h1 className="mt-2 text-2xl font-bold text-white">Real Estate OS</h1>
+    <aside
+      aria-label="Main navigation"
+      className={`fixed inset-y-0 left-0 z-40 flex h-screen w-72 shrink-0 flex-col border-r border-slate-800 bg-slate-950 px-5 py-6 shadow-2xl transition-transform duration-200 lg:sticky lg:top-0 lg:translate-x-0 lg:shadow-none ${
+        isMobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">
+            EstateFlow
+          </p>
+          <h1 className="mt-2 text-2xl font-bold text-white">Real Estate OS</h1>
+        </div>
+
+        <button
+          aria-label="Close navigation"
+          type="button"
+          onClick={onClose}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
+        >
+          <X aria-hidden="true" size={20} />
+        </button>
       </div>
 
       <nav className="flex-1 space-y-7 overflow-y-auto">
@@ -23,9 +45,11 @@ export function Sidebar() {
                 <NavLink
                   key={item.href}
                   to={item.href}
+                  end={item.href === "/"}
+                  onClick={onClose}
                   className={({ isActive }) =>
                     [
-                      "block rounded-xl px-3 py-2.5 text-sm font-medium transition",
+                      "flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-medium transition",
                       isActive
                         ? "bg-amber-400 text-slate-950"
                         : "text-slate-300 hover:bg-slate-800 hover:text-white",
@@ -40,7 +64,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         <p className="text-sm font-semibold text-white">EstateFlow AI</p>
         <p className="mt-1 text-xs leading-5 text-slate-400">
           Your smart workspace for properties, clients, and deals.

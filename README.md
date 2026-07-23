@@ -1,32 +1,71 @@
-# React + TypeScript + Vite
+# EstateFlow AI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+EstateFlow AI is a smart real-estate operating system for agencies in
+Kurdistan and Iraq. It brings property listings, clients, viewings, matching,
+and deal work into one fast, professional workspace.
 
-Currently, two official plugins are available:
+## Current product
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Responsive dashboard with live property portfolio totals
+- Persistent property listings saved in the browser
+- Complete create and edit forms
+- Direct property photo upload, compression, previews, cover selection, and
+  removal
+- Search by listing, district, location, owner, phone, type, or ID
+- Purpose, status, type, and district filters
+- Recent, newest, highest-price, and lowest-price sorting
+- Property duplication and protected deletion
+- Property gallery, status management, owner actions, and shareable listing
+  details
+- Persistent client CRM with create, edit, protected delete, exact
+  requirements, follow-up dates, calls, and WhatsApp actions
+- One shared smart-matching engine for client and property profiles
+- Explainable scores for purpose, budget, area, property type, and bedrooms
+- Smart Matches workspace with search, filters, property sharing, and viewing
+  actions
+- Shared viewing calendar with confirmation, cancellation, reminders, and
+  outcomes
+- Client and property activity timelines connected to the same saved records
+- Live dashboard viewing schedule, match totals, and recent activity
+- Desktop and mobile navigation
 
-## React Compiler
+## Technology
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- TanStack Query
+- React Hook Form
+- Zod
+- Lucide React
+- Vitest
+- React Testing Library
+- jsdom
 
-## Expanding the Oxlint configuration
+This stage intentionally uses browser storage and does not require a paid
+service or backend. Supabase can be connected when authentication, multi-user
+data, and cloud photo storage become the next priority.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Run locally
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open the local URL shown by Vite.
+
+## Quality checks
+
+```bash
+npm run test
+npm run lint
+npm run build
+```
+
+## Project direction
+
+See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the authoritative build
+status, product rules, and next milestone.
