@@ -3,9 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import { loadActivities } from "../features/activities/activity-storage";
 import { loadClients } from "../features/clients/client-storage";
-import { getAllSmartMatches } from "../features/matching/matching";
+import { loadDeals } from "../features/deals/deal-storage";
+import {
+  formatMoney,
+  getDealMetrics,
+  isClosedStage,
+} from "../features/deals/deal-utils";
 import { loadProperties } from "../features/properties/property-storage";
-import { getPropertyStats } from "../features/properties/property-utils";
 import { loadViewings } from "../features/viewings/viewing-storage";
 import {
   formatViewingTime,
@@ -41,7 +45,8 @@ export function DashboardPage() {
   const clients = loadClients();
   const viewings = loadViewings(properties);
   const activities = loadActivities();
-  const propertyStats = getPropertyStats(properties);
+  const deals = loadDeals(clients, properties);
+  const dealMetrics = getDealMetrics(deals);
   const clientById = new Map(clients.map((client) => [client.id, client]));
   const propertyById = new Map(
     properties.map((property) => [property.id, property]),
@@ -54,51 +59,58 @@ export function DashboardPage() {
       (first, second) =>
         getViewingTimestamp(first) - getViewingTimestamp(second),
     );
-  const strongMatches = getAllSmartMatches(clients, properties).filter(
-    (match) => match.score >= 70,
-  );
   const recentActivities = [...activities]
     .sort(
       (first, second) =>
         Date.parse(second.createdAt) - Date.parse(first.createdAt),
     )
     .slice(0, 5);
+  const upcomingDealActions = deals
+    .filter(
+      (deal) =>
+        !deal.archived && !isClosedStage(deal.stage) && deal.nextActionAt,
+    )
+    .sort((first, second) =>
+      first.nextActionAt.localeCompare(second.nextActionAt),
+    )
+    .slice(0, 5);
   const metrics = [
     {
-      label: "Total properties",
-      value: propertyStats.total,
-      detail: "All saved listings",
-      detailClassName: "text-slate-500",
-    },
-    {
-      label: "Available",
-      value: propertyStats.available,
-      detail: "Ready to promote",
-      detailClassName: "text-emerald-600",
-    },
-    {
-      label: "For sale",
-      value: propertyStats.forSale,
-      detail: "Buyer opportunities",
-      detailClassName: "text-amber-700",
-    },
-    {
-      label: "For rent",
-      value: propertyStats.forRent,
-      detail: "Tenant opportunities",
+      label: "Active deals",
+      value: dealMetrics.activeDeals,
+      detail: "Open pipeline",
       detailClassName: "text-sky-700",
     },
     {
-      label: "Sold / Rented",
-      value: propertyStats.closed,
-      detail: "Completed listings",
+      label: "Pipeline value",
+      value: formatMoney(dealMetrics.pipelineValueMinor, "USD"),
+      detail: "Saved deal values",
+      detailClassName: "text-amber-700",
+    },
+    {
+      label: "Won deals",
+      value: dealMetrics.wonDeals,
+      detail: "Closed successfully",
+      detailClassName: "text-emerald-600",
+    },
+    {
+      label: "Expected commission",
+      value: formatMoney(dealMetrics.expectedCommissionMinor, "USD"),
+      detail: "Active agency commission",
       detailClassName: "text-violet-700",
     },
     {
-      label: "Active clients",
-      value: clients.length,
-      detail: `${strongMatches.length} strong matching pairs`,
+      label: "Collected",
+      value: formatMoney(dealMetrics.collectedPaymentsMinor, "USD"),
+      detail: "Recorded payments",
       detailClassName: "text-emerald-600",
+    },
+    {
+      label: "Outstanding",
+      value: formatMoney(dealMetrics.outstandingBalanceMinor, "USD"),
+      detail: `${dealMetrics.overduePayments} overdue`,
+      detailClassName:
+        dealMetrics.overduePayments > 0 ? "text-rose-600" : "text-slate-500",
     },
   ];
 
@@ -122,7 +134,7 @@ export function DashboardPage() {
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
           >
             <p className="text-sm font-medium text-slate-500">{metric.label}</p>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+            <p className="mt-3 text-2xl font-bold tracking-tight text-slate-950">
               {metric.value}
             </p>
             <p className={`mt-3 text-sm font-medium ${metric.detailClassName}`}>
@@ -130,6 +142,48 @@ export function DashboardPage() {
             </p>
           </article>
         ))}
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              Upcoming deal actions
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              The next saved follow-ups across your active pipeline.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("/deals")}
+            className="inline-flex min-h-11 items-center gap-2 self-start rounded-xl px-3 text-sm font-bold text-amber-700 hover:bg-amber-50 sm:self-auto"
+          >
+            Open deals <ArrowRight size={16} />
+          </button>
+        </div>
+        {upcomingDealActions.length > 0 ? (
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {upcomingDealActions.map((deal) => (
+              <button
+                key={deal.id}
+                type="button"
+                onClick={() => navigate("/deals")}
+                className="rounded-xl bg-slate-50 p-4 text-left transition hover:bg-amber-50"
+              >
+                <p className="font-bold text-slate-950">{deal.nextAction}</p>
+                <p className="mt-1 text-sm text-slate-500">{deal.title}</p>
+                <p className="mt-2 text-xs font-semibold text-amber-700">
+                  {formatActivityTime(deal.nextActionAt)} · {deal.stage}
+                </p>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-5 rounded-xl bg-slate-50 p-5 text-sm text-slate-500">
+            Add a next action to an active deal and it will appear here.
+          </p>
+        )}
       </section>
 
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.45fr_1fr]">
@@ -236,11 +290,11 @@ export function DashboardPage() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/matches")}
+                onClick={() => navigate("/deals")}
                 className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-700 px-4 text-left text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 <Sparkles aria-hidden="true" size={17} />
-                Review smart matches
+                Open the deal pipeline
               </button>
             </div>
           </article>

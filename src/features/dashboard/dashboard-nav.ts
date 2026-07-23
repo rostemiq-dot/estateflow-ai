@@ -21,11 +21,7 @@ export const dashboardNav: DashboardNavGroup[] = [
   },
   {
     label: "Deals",
-    items: [
-      { label: "Contracts", href: "/contracts" },
-      { label: "Commissions", href: "/commissions" },
-      { label: "Payments", href: "/payments" },
-    ],
+    items: [{ label: "Deals workspace", href: "/deals" }],
   },
   {
     label: "Management",

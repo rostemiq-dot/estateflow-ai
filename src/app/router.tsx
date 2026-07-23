@@ -4,6 +4,7 @@ import { PropertiesPage } from "../pages/PropertiesPage";
 import { ClientsPage } from "../pages/ClientsPage";
 import { SmartMatchesPage } from "../pages/SmartMatchesPage";
 import { ViewingsPage } from "../pages/ViewingsPage";
+import { DealsPage } from "../pages/DealsPage";
 
 export const router = createBrowserRouter([
   {
@@ -25,5 +26,9 @@ export const router = createBrowserRouter([
   {
     path: "/viewings",
     element: <ViewingsPage />,
+  },
+  {
+    path: "/deals",
+    element: <DealsPage />,
   },
 ]);

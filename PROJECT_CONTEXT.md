@@ -82,12 +82,42 @@ is introduced.
 - Live dashboard viewings, strong-match totals, and recent activity
 - Client/property/viewing integration tests using a browser-like DOM
 
+### Deals + Offers + Commissions + Payments
+
+- Persistent deal pipeline linked to existing client and property IDs
+- Lead, Viewing, Negotiation, Offer Made, Contract, Closed Won, and Closed Lost
+  stages with per-stage counts and direct stage movement
+- Sale and rental deals with create, profile, edit, duplicate, archive, restore,
+  and protected permanent deletion
+- Search across deals, clients, properties, and agents with stage/type filters
+  and value, action, and recent-update sorting
+- Full deal profiles with assigned agent, expected value, probability, next
+  action, close date, notes, linked viewings, shared client/property activity,
+  call actions, and WhatsApp follow-up
+- Multiple offers with status tracking, expiration, terms, notes, accepted-offer
+  automation, and linked counteroffer history
+- Integer minor-unit money storage to avoid floating-point calculation errors
+- Percentage or fixed agency commission with configurable agent share and
+  explicit expected/confirmed state
+- Payment schedules and records with due/paid dates, method, reference, notes,
+  automatic paid/remaining totals, overdue detection, cancellation, and
+  overpayment/negative-value protection
+- Confirmation-based closing, required Closed Lost reasons, preserved reopening
+  history, and automatic Sold/Rented property status updates for won deals
+- Live dashboard totals for active deals, pipeline value, won deals, expected
+  commission, collected payments, outstanding balances, overdue schedules, and
+  upcoming actions
+- Responsive desktop and mobile deal workspace following the existing
+  white/slate/amber EstateFlow design
+
 ## Storage at this stage
 
 - Properties: `estateflow-properties` in browser localStorage
 - Clients: `estateflow-clients` in browser localStorage
 - Viewings: `estateflow-viewings` in browser localStorage
 - Shared activity: `estateflow-activities` in browser localStorage
+- Deals, offers, commissions, and payments: `estateflow-deals` in browser
+  localStorage
 - Property images are compressed data URLs for this local prototype
 
 Browser storage is intentionally temporary architecture. Before real agency
@@ -96,19 +126,9 @@ Supabase/PostgreSQL and private object storage.
 
 ## Next recommended milestone
 
-Build the integrated **Deals + Offers + Money** workflow:
-
-1. Create a deal from a client/property match or an `Offer made` viewing
-   outcome.
-2. Track deal stages: New, Offer, Negotiation, Contract, Won, and Lost.
-3. Save asking price, offered price, agreed price, expected close date, agent,
-   and next action.
-4. Connect every deal to its client, property, viewing, and activity timeline.
-5. Add a contract/document checklist before a deal can close.
-6. Calculate agency commission automatically by percentage or fixed amount.
-7. Track commission and payment status without pretending money was received.
-8. After the workflow is stable, move authentication, shared data, audit
-   history, and images to Supabase for real multi-user agency use.
+Add authentication, agency/team roles, shared cloud persistence, private image
+storage, and audit-safe synchronization with Supabase/PostgreSQL before using
+EstateFlow for real multi-user agency operations.
 
 ## Validation baseline
 
@@ -125,6 +145,7 @@ filters, sorting, duplicate, safe delete, status changes, dashboard totals,
 client matching, viewing status/outcomes, shared activity, and a 390-pixel
 mobile viewport.
 
-Current automated baseline: 20 tests across property utilities, client
-migration, smart matching, viewing utilities, and integrated screen
+Current automated baseline: 31 tests across property utilities, client
+migration, smart matching, viewing utilities, deal calculations, offers,
+closing rules, payment validation, deal persistence, and integrated screen
 interactions.
