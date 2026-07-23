@@ -1,5 +1,6 @@
 import { CalendarDays, Menu, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { NotificationBell } from "./NotificationBell";
 
 type TopbarProps = {
   onOpenNavigation: () => void;
@@ -43,6 +44,7 @@ export function Topbar({ onOpenNavigation }: TopbarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <NotificationBell />
         <button
           aria-label="Open viewing calendar"
           type="button"

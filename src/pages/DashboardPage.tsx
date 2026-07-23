@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import { loadActivities } from "../features/activities/activity-storage";
 import { loadClients } from "../features/clients/client-storage";
+import { loadContracts } from "../features/contracts/contract-storage";
 import { loadDeals } from "../features/deals/deal-storage";
 import {
   formatMoney,
@@ -10,6 +11,9 @@ import {
   isClosedStage,
 } from "../features/deals/deal-utils";
 import { loadProperties } from "../features/properties/property-storage";
+import { loadDocumentMetadata } from "../features/documents/document-storage";
+import { loadTasks, taskTiming } from "../features/tasks/task-storage";
+import { derivePaymentStatus } from "../features/deals/deal-utils";
 import { loadViewings } from "../features/viewings/viewing-storage";
 import {
   formatViewingTime,
@@ -41,11 +45,15 @@ function formatActivityTime(value: string) {
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const dashboardNow = new Date();
   const properties = loadProperties();
   const clients = loadClients();
   const viewings = loadViewings(properties);
   const activities = loadActivities();
   const deals = loadDeals(clients, properties);
+  const contracts = loadContracts();
+  const tasks = loadTasks();
+  const documents = loadDocumentMetadata();
   const dealMetrics = getDealMetrics(deals);
   const clientById = new Map(clients.map((client) => [client.id, client]));
   const propertyById = new Map(
@@ -74,6 +82,55 @@ export function DashboardPage() {
       first.nextActionAt.localeCompare(second.nextActionAt),
     )
     .slice(0, 5);
+  const operationalMetrics = [
+    {
+      label: "Awaiting signature",
+      value: contracts.filter((contract) =>
+        ["Under Review", "Ready to Sign"].includes(contract.status),
+      ).length,
+      detail: "Contracts",
+    },
+    {
+      label: "Recently signed",
+      value: contracts.filter((contract) => contract.status === "Signed")
+        .length,
+      detail: "Signed contracts",
+    },
+    {
+      label: "Tasks today",
+      value: tasks.filter((task) => taskTiming(task).today).length,
+      detail: "Scheduled follow-ups",
+    },
+    {
+      label: "Overdue tasks",
+      value: tasks.filter((task) => taskTiming(task).overdue).length,
+      detail: "Need attention",
+    },
+    {
+      label: "Offers expiring",
+      value: deals
+        .flatMap((deal) => deal.offers)
+        .filter((offer) => {
+          if (offer.status !== "Sent" || !offer.expirationDate) return false;
+          const days =
+            (Date.parse(`${offer.expirationDate}T23:59:59`) -
+              dashboardNow.getTime()) /
+            86_400_000;
+          return days >= 0 && days <= 7;
+        }).length,
+      detail: "Next seven days",
+    },
+    {
+      label: "Payments overdue",
+      value: deals
+        .flatMap((deal) => deal.payments)
+        .filter((payment) => derivePaymentStatus(payment) === "Overdue").length,
+      detail: "Collection follow-ups",
+    },
+  ];
+  const recentDocuments = [...documents]
+    .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt))
+    .slice(0, 4);
   const metrics = [
     {
       label: "Active deals",
@@ -184,6 +241,68 @@ export function DashboardPage() {
             Add a next action to an active deal and it will appear here.
           </p>
         )}
+      </section>
+
+      <section className="mt-8">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              Contracts, tasks, and documents
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Live operational status from saved records.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/tasks")}
+            className="min-h-11 rounded-xl px-3 text-sm font-bold text-amber-700"
+          >
+            Open tasks
+          </button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          {operationalMetrics.map((metric) => (
+            <article
+              key={metric.label}
+              className="rounded-2xl border border-slate-200 bg-white p-4"
+            >
+              <p className="text-xs font-semibold text-slate-500">
+                {metric.label}
+              </p>
+              <p className="mt-2 text-2xl font-bold text-slate-950">
+                {metric.value}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">{metric.detail}</p>
+            </article>
+          ))}
+        </div>
+        <article className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <p className="font-bold text-slate-950">Recent document activity</p>
+            <button
+              onClick={() => navigate("/documents")}
+              className="min-h-11 rounded-xl px-3 text-sm font-bold text-amber-700"
+            >
+              Document Center
+            </button>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {recentDocuments.map((document) => (
+              <div key={document.id} className="rounded-xl bg-slate-50 p-3">
+                <p className="truncate text-sm font-bold">{document.name}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {document.category} · {document.entityType}{" "}
+                  {document.entityId}
+                </p>
+              </div>
+            ))}
+            {!recentDocuments.length && (
+              <p className="text-sm text-slate-500">
+                Uploaded document activity will appear here.
+              </p>
+            )}
+          </div>
+        </article>
       </section>
 
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.45fr_1fr]">

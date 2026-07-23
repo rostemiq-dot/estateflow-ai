@@ -14,6 +14,7 @@ import type {
 } from "../../../features/activities/activity-data";
 import type { Client } from "../../../features/clients/client-data";
 import type { Property } from "../../../features/properties/property-data";
+import { loadTasks } from "../../../features/tasks/task-storage";
 import type {
   Viewing,
   ViewingDraft,
@@ -98,6 +99,9 @@ export function ClientDetailsModal({
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isSmartMatchesOpen, setIsSmartMatchesOpen] = useState(false);
   const clientViewings = getViewingsForClient(viewings, client.id);
+  const linkedTasks = loadTasks().filter(
+    (task) => !task.archived && task.clientId === client.id,
+  );
   const propertyById = new Map(
     properties.map((property) => [property.id, property]),
   );
@@ -434,6 +438,9 @@ export function ClientDetailsModal({
                   </p>
                   <p className="mt-3 font-bold text-slate-950">
                     {client.followUp}
+                  </p>
+                  <p className="mt-3 text-sm font-semibold text-amber-700">
+                    {linkedTasks.length} linked tasks
                   </p>
                 </section>
               </aside>

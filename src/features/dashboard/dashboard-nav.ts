@@ -21,13 +21,17 @@ export const dashboardNav: DashboardNavGroup[] = [
   },
   {
     label: "Deals",
-    items: [{ label: "Deals workspace", href: "/deals" }],
+    items: [
+      { label: "Deals workspace", href: "/deals" },
+      { label: "Contracts", href: "/contracts" },
+      { label: "Documents", href: "/documents" },
+      { label: "Tasks", href: "/tasks" },
+    ],
   },
   {
     label: "Management",
     items: [
       { label: "Team", href: "/team" },
-      { label: "Documents", href: "/documents" },
       { label: "Reports", href: "/reports" },
       { label: "Automation", href: "/automation" },
     ],

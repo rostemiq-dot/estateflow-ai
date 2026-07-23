@@ -25,6 +25,7 @@ import {
   formatPropertyDate,
   formatPropertyPrice,
 } from "../../../features/properties/property-utils";
+import { loadTasks } from "../../../features/tasks/task-storage";
 import type { Viewing } from "../../../features/viewings/viewing-data";
 import {
   formatViewingDate,
@@ -134,6 +135,9 @@ export function PropertyDetailsModal({
   const matches = getMatchesForProperty(property, clients, true);
   const propertyViewings = getViewingsForProperty(viewings, property.id);
   const propertyActivities = getActivitiesForProperty(activities, property.id);
+  const linkedTasks = loadTasks().filter(
+    (task) => !task.archived && task.propertyId === property.id,
+  );
   const clientById = new Map(clients.map((client) => [client.id, client]));
   const bestMatchScore = matches[0]?.score ?? 0;
 
@@ -707,6 +711,12 @@ ${property.bedrooms} bedrooms · ${property.bathrooms} bathrooms · ${
                     </span>
                     <span className="text-sm font-bold text-slate-950">
                       {propertyViewings.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600">Linked tasks</span>
+                    <span className="text-sm font-bold text-slate-950">
+                      {linkedTasks.length}
                     </span>
                   </div>
                 </div>

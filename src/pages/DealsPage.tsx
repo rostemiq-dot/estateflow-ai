@@ -57,6 +57,7 @@ import {
   loadProperties,
   saveProperties,
 } from "../features/properties/property-storage";
+import { loadTasks } from "../features/tasks/task-storage";
 import { loadViewings } from "../features/viewings/viewing-storage";
 import { createWhatsAppUrl } from "../lib/whatsapp";
 
@@ -1059,6 +1060,9 @@ function DealDetails({
     (activity) =>
       !activity.propertyId || activity.propertyId === deal.propertyId,
   );
+  const relatedTasks = loadTasks().filter(
+    (task) => !task.archived && task.dealId === deal.id,
+  );
   const timeline = [
     ...deal.history.map((entry) => ({
       id: entry.id,
@@ -1215,6 +1219,14 @@ function DealDetails({
                             deal.currency,
                           )
                         : "None"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase text-slate-400">
+                      Linked tasks
+                    </dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-800">
+                      {relatedTasks.length}
                     </dd>
                   </div>
                 </dl>

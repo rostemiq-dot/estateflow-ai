@@ -110,6 +110,25 @@ is introduced.
 - Responsive desktop and mobile deal workspace following the existing
   white/slate/amber EstateFlow design
 
+### Contracts + Documents + Tasks + Notifications
+
+- Sale and rental contracts created only from accepted offers and linked to
+  existing deals, clients, properties, and offers
+- Editable professional clauses, version history, review/sign/cancel workflow,
+  locked signed snapshots, legal-review disclaimer, and print/PDF view
+- Shared Document Center with typed metadata and IndexedDB file storage
+- PDF, JPG, PNG, WEBP, DOCX, and XLSX validation, upload, rename, replace,
+  download, entity/category filtering, and protected deletion
+- List and board task workspace with priorities, due-date filters, linked
+  records, activity history, completion, rescheduling, duplication, archiving,
+  and protected deletion
+- Deterministic local task automations for viewings, offers, accepted offers,
+  payments, and contracts ready to sign, with duplicate prevention
+- In-app notification bell with unread count, direct navigation, mark-read,
+  mark-all-read, dismissal, and event-signature-aware recurrence
+- Dashboard operational metrics for contracts, tasks, offers, viewings,
+  payments, and recent document activity
+
 ## Storage at this stage
 
 - Properties: `estateflow-properties` in browser localStorage
@@ -118,6 +137,11 @@ is introduced.
 - Shared activity: `estateflow-activities` in browser localStorage
 - Deals, offers, commissions, and payments: `estateflow-deals` in browser
   localStorage
+- Contracts: `estateflow-contracts` in browser localStorage
+- Tasks: `estateflow-tasks` in browser localStorage
+- Document metadata: `estateflow-documents` in browser localStorage
+- Document binary data: `estateflow-document-files` in browser IndexedDB
+- Notification state: `estateflow-notification-state` in browser localStorage
 - Property images are compressed data URLs for this local prototype
 
 Browser storage is intentionally temporary architecture. Before real agency
@@ -145,7 +169,7 @@ filters, sorting, duplicate, safe delete, status changes, dashboard totals,
 client matching, viewing status/outcomes, shared activity, and a 390-pixel
 mobile viewport.
 
-Current automated baseline: 31 tests across property utilities, client
-migration, smart matching, viewing utilities, deal calculations, offers,
-closing rules, payment validation, deal persistence, and integrated screen
-interactions.
+Current automated baseline includes property utilities, client migration, smart
+matching, viewing utilities, deal calculations and persistence, contracts and
+signed snapshots, IndexedDB documents, task automation and timing,
+notification dismissal, and integrated screen interactions.
