@@ -5,6 +5,7 @@ import { createDeal } from "../deals/deal-storage";
 import { acceptOffer } from "../deals/deal-utils";
 import {
   createContract,
+  getEligibleContractOffers,
   signContract,
   updateContract,
 } from "./contract-storage";
@@ -93,5 +94,44 @@ describe("contracts", () => {
     const attempted = updateContract(signed, { notes: "Changed later" });
     expect(attempted.notes).toBe("Reviewed");
     expect(attempted.signedSnapshot?.notes).toBe("Reviewed");
+  });
+  it("prevents duplicate contracts for the same accepted offer", () => {
+    const deal = createDeal(
+      {
+        title: "Unique offer",
+        clientId: clients[0].id,
+        propertyId: properties[0].id,
+        type: "Sale",
+        stage: "Contract",
+        expectedValueMinor: 10000,
+        currency: "USD",
+        probability: 90,
+        assignedAgent: "M",
+        nextAction: "",
+        nextActionAt: "",
+        expectedCloseDate: "",
+        notes: "",
+      },
+      [],
+    );
+    deal.offers = [
+      {
+        id: "OFF-UNIQUE",
+        amountMinor: 9000,
+        date: "",
+        expirationDate: "",
+        conditions: "",
+        notes: "",
+        status: "Accepted",
+        createdAt: "2026-07-23T00:00:00Z",
+        updatedAt: "2026-07-23T00:00:00Z",
+      },
+    ];
+    const contract = createContract(deal, clients[0], properties[0]);
+    expect(getEligibleContractOffers([deal], [])).toHaveLength(1);
+    expect(contract).not.toBeNull();
+    expect(
+      getEligibleContractOffers([deal], contract ? [contract] : []),
+    ).toHaveLength(0);
   });
 });

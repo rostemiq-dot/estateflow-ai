@@ -1,6 +1,6 @@
 # EstateFlow AI — Build Context
 
-Last updated: 23 July 2026
+Last updated: 25 July 2026
 
 ## Product purpose
 
@@ -128,6 +128,21 @@ is introduced.
   mark-all-read, dismissal, and event-signature-aware recurrence
 - Dashboard operational metrics for contracts, tasks, offers, viewings,
   payments, and recent document activity
+
+### Workflow reliability fixes
+
+- Create Task dialog constrained to the viewport with an internal scroll
+  region, persistent header and action footer, backdrop/X/Cancel/Escape closing,
+  dirty-form protection, page scroll locking, keyboard focus trapping, and
+  focus restoration
+- Always-visible Create Contract action with a detailed eligible accepted-offer
+  selector showing the linked deal, client, property, amount, and deal type
+- Draft contract creation routes directly into the full editor and remains
+  persisted after refresh
+- Accepted offers expose a Create Contract action from their deal profile
+- Duplicate contracts are prevented by accepted-offer ID
+- Contract empty states explain the accepted-offer prerequisite and link back
+  to Deals
 
 ## Storage at this stage
 

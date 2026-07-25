@@ -13,12 +13,14 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import {
   getActivitiesForClient,
   loadActivities,
 } from "../features/activities/activity-storage";
 import { loadClients } from "../features/clients/client-storage";
+import { loadContracts } from "../features/contracts/contract-storage";
 import {
   COMMISSION_MODES,
   DEAL_STAGES,
@@ -373,9 +375,11 @@ function DealForm({
 function OfferPanel({
   deal,
   onChange,
+  onCreateContract,
 }: {
   deal: Deal;
   onChange: (deal: Deal) => void;
+  onCreateContract?: () => void;
 }) {
   const [amount, setAmount] = useState("");
   const [expiration, setExpiration] = useState("");
@@ -475,6 +479,23 @@ function OfferPanel({
           {deal.offers.length}
         </span>
       </div>
+      {getAcceptedOffer(deal) && onCreateContract && (
+        <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-bold text-emerald-900">Offer accepted</p>
+            <p className="mt-1 text-sm text-emerald-700">
+              Create the connected sale or rental contract from this offer.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onCreateContract}
+            className="min-h-11 shrink-0 rounded-xl bg-slate-950 px-4 font-bold text-white"
+          >
+            Create contract
+          </button>
+        </div>
+      )}
       <form
         onSubmit={addOffer}
         className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2"
@@ -1034,6 +1055,7 @@ function DealDetails({
   onEdit,
   onChange,
   onStage,
+  onCreateContract,
 }: {
   deal: Deal;
   client: ReturnType<typeof loadClients>[number] | undefined;
@@ -1044,6 +1066,7 @@ function DealDetails({
   onEdit: () => void;
   onChange: (deal: Deal) => void;
   onStage: (stage: DealStage) => void;
+  onCreateContract?: () => void;
 }) {
   const [tab, setTab] = useState<"overview" | "offers" | "money" | "activity">(
     "overview",
@@ -1292,7 +1315,13 @@ function DealDetails({
               </section>
             </div>
           )}
-          {tab === "offers" && <OfferPanel deal={deal} onChange={onChange} />}
+          {tab === "offers" && (
+            <OfferPanel
+              deal={deal}
+              onChange={onChange}
+              onCreateContract={onCreateContract}
+            />
+          )}
           {tab === "money" && <MoneyPanel deal={deal} onChange={onChange} />}
           {tab === "activity" && (
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -1325,6 +1354,7 @@ function DealDetails({
 }
 
 export function DealsPage() {
+  const navigate = useNavigate();
   const [clients] = useState(loadClients);
   const [properties, setProperties] = useState(loadProperties);
   const [viewings] = useState(() => loadViewings(properties));
@@ -1767,6 +1797,14 @@ export function DealsPage() {
           onEdit={() => setEditingId(selected.id)}
           onChange={updateDeal}
           onStage={(nextStage) => moveStage(selected, nextStage)}
+          onCreateContract={
+            getAcceptedOffer(selected) &&
+            !loadContracts().some(
+              (contract) => contract.offerId === getAcceptedOffer(selected)?.id,
+            )
+              ? () => navigate(`/contracts?createFor=${selected.id}`)
+              : undefined
+          }
         />
       )}
     </DashboardShell>

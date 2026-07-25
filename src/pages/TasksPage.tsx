@@ -1,5 +1,22 @@
-import { CalendarClock, Check, Copy, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import {
+  CalendarClock,
+  Check,
+  Copy,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import { loadClients } from "../features/clients/client-storage";
 import { loadContracts } from "../features/contracts/contract-storage";
@@ -49,6 +66,40 @@ export function TasksPage() {
     [dealId, setDealId] = useState(""),
     [contractId, setContractId] = useState(""),
     [notes, setNotes] = useState("");
+  const addTaskButtonRef = useRef<HTMLButtonElement>(null);
+  const hasUnsavedTask =
+    title.trim().length > 0 ||
+    description.trim().length > 0 ||
+    due.length > 0 ||
+    priority !== "Normal" ||
+    agent !== "Mohammed" ||
+    clientId.length > 0 ||
+    propertyId.length > 0 ||
+    dealId.length > 0 ||
+    contractId.length > 0 ||
+    notes.trim().length > 0;
+  function resetDraft() {
+    setTitle("");
+    setDescription("");
+    setDue("");
+    setPriority("Normal");
+    setAgent("Mohammed");
+    setClientId("");
+    setPropertyId("");
+    setDealId("");
+    setContractId("");
+    setNotes("");
+  }
+  function closeCreateModal() {
+    if (
+      hasUnsavedTask &&
+      !window.confirm("Discard the unsaved task information?")
+    ) {
+      return;
+    }
+    resetDraft();
+    setOpen(false);
+  }
   const visible = useMemo(
     () =>
       tasks.filter(
@@ -116,10 +167,8 @@ export function TasksPage() {
       },
       ...tasks,
     ]);
+    resetDraft();
     setOpen(false);
-    setTitle("");
-    setDescription("");
-    setDue("");
   };
   return (
     <DashboardShell>
@@ -133,6 +182,7 @@ export function TasksPage() {
           </p>
         </div>
         <button
+          ref={addTaskButtonRef}
           onClick={() => setOpen(true)}
           className="inline-flex min-h-12 items-center gap-2 self-end rounded-xl bg-amber-500 px-5 font-bold"
         >
@@ -275,119 +325,221 @@ export function TasksPage() {
         )}
       </section>
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
-          <form
-            onSubmit={create}
-            className="w-full max-w-xl rounded-2xl bg-white p-6"
-          >
-            <h2 className="text-xl font-bold">Create task</h2>
-            <div className="mt-5 grid gap-4">
-              <input
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Task title"
-                className={field}
-              />
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description"
-                className={`${field} min-h-24 py-3`}
-              />
-              <input
-                required
-                type="datetime-local"
-                value={due}
-                onChange={(e) => setDue(e.target.value)}
-                className={field}
-              />
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className={field}
-              >
-                {TASK_PRIORITIES.map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
-              <input
-                value={agent}
-                onChange={(e) => setAgent(e.target.value)}
-                placeholder="Responsible agent"
-                className={field}
-              />
-              <select
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className={field}
-              >
-                <option value="">No linked client</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={propertyId}
-                onChange={(e) => setPropertyId(e.target.value)}
-                className={field}
-              >
-                <option value="">No linked property</option>
-                {properties.map((property) => (
-                  <option key={property.id} value={property.id}>
-                    {property.title}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={dealId}
-                onChange={(e) => setDealId(e.target.value)}
-                className={field}
-              >
-                <option value="">No linked deal</option>
-                {deals.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.title}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={contractId}
-                onChange={(e) => setContractId(e.target.value)}
-                className={field}
-              >
-                <option value="">No linked contract</option>
-                {contracts.map((contract) => (
-                  <option key={contract.id} value={contract.id}>
-                    {contract.contractNumber}
-                  </option>
-                ))}
-              </select>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes"
-                className={`${field} min-h-24 py-3`}
-              />
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
+        <TaskModal
+          title="Create task"
+          onClose={closeCreateModal}
+          onSubmit={create}
+          returnFocusRef={addTaskButtonRef}
+          footer={
+            <>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="min-h-11 px-4 font-bold"
+                onClick={closeCreateModal}
+                className="min-h-11 rounded-xl px-4 font-bold text-slate-700 hover:bg-slate-100"
               >
                 Cancel
               </button>
-              <button className="min-h-11 rounded-xl bg-amber-500 px-4 font-bold">
-                Save
+              <button className="min-h-11 rounded-xl bg-amber-500 px-5 font-bold text-slate-950 hover:bg-amber-400">
+                Create task
               </button>
-            </div>
-          </form>
-        </div>
+            </>
+          }
+        >
+          <div className="grid gap-4">
+            <input
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Task title"
+              className={field}
+            />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description"
+              className={`${field} min-h-24 py-3`}
+            />
+            <input
+              required
+              type="datetime-local"
+              value={due}
+              onChange={(e) => setDue(e.target.value)}
+              className={field}
+            />
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority)}
+              className={field}
+            >
+              {TASK_PRIORITIES.map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+            <input
+              value={agent}
+              onChange={(e) => setAgent(e.target.value)}
+              placeholder="Responsible agent"
+              className={field}
+            />
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className={field}
+            >
+              <option value="">No linked client</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={propertyId}
+              onChange={(e) => setPropertyId(e.target.value)}
+              className={field}
+            >
+              <option value="">No linked property</option>
+              {properties.map((property) => (
+                <option key={property.id} value={property.id}>
+                  {property.title}
+                </option>
+              ))}
+            </select>
+            <select
+              value={dealId}
+              onChange={(e) => setDealId(e.target.value)}
+              className={field}
+            >
+              <option value="">No linked deal</option>
+              {deals.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title}
+                </option>
+              ))}
+            </select>
+            <select
+              value={contractId}
+              onChange={(e) => setContractId(e.target.value)}
+              className={field}
+            >
+              <option value="">No linked contract</option>
+              {contracts.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.contractNumber}
+                </option>
+              ))}
+            </select>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes"
+              className={`${field} min-h-24 py-3`}
+            />
+          </div>
+        </TaskModal>
       )}
     </DashboardShell>
+  );
+}
+
+function TaskModal({
+  title,
+  children,
+  footer,
+  onClose,
+  onSubmit,
+  returnFocusRef,
+}: {
+  title: string;
+  children: ReactNode;
+  footer: ReactNode;
+  onClose: () => void;
+  onSubmit: (event: FormEvent) => void;
+  returnFocusRef: RefObject<HTMLButtonElement | null>;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const returnFocusElement = returnFocusRef.current;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      returnFocusElement?.focus();
+    };
+  }, [returnFocusRef]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (!focusable?.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-5"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-task-title"
+        onKeyDown={handleKeyDown}
+        className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]"
+      >
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
+          <h2 id="create-task-title" className="text-xl font-bold">
+            {title}
+          </h2>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            aria-label="Close create task"
+            onClick={onClose}
+            className="grid min-h-11 min-w-11 place-items-center rounded-xl text-slate-600 hover:bg-slate-100"
+          >
+            <X size={20} />
+          </button>
+        </header>
+        <form
+          id="create-task-form"
+          onSubmit={onSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div
+            data-testid="create-task-scroll-region"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5"
+          >
+            {children}
+          </div>
+          <footer className="flex shrink-0 justify-end gap-2 border-t border-slate-200 bg-white px-5 py-4">
+            {footer}
+          </footer>
+        </form>
+      </div>
+    </div>
   );
 }
 function TaskCard({

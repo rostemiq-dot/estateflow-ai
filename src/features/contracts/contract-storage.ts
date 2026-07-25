@@ -67,6 +67,18 @@ export function createContract(
 ): Contract | null {
   const offer = getAcceptedOffer(deal);
   if (!offer) return null;
+  return createContractForOffer(deal, offer.id, client, property);
+}
+export function createContractForOffer(
+  deal: Deal,
+  offerId: string,
+  client: Client,
+  property: Property,
+): Contract | null {
+  const offer = deal.offers.find(
+    (candidate) => candidate.id === offerId && candidate.status === "Accepted",
+  );
+  if (!offer) return null;
   const now = new Date().toISOString();
   const type = deal.type;
   const snapshot: ContractSnapshot = {
@@ -117,6 +129,22 @@ export function createContract(
     createdAt: now,
     updatedAt: now,
   };
+}
+export function getEligibleContractOffers(
+  deals: readonly Deal[],
+  contracts: readonly Contract[],
+) {
+  const contractedOfferIds = new Set(
+    contracts.map((contract) => contract.offerId),
+  );
+  return deals.flatMap((deal) =>
+    deal.offers
+      .filter(
+        (offer) =>
+          offer.status === "Accepted" && !contractedOfferIds.has(offer.id),
+      )
+      .map((offer) => ({ deal, offer })),
+  );
 }
 export function updateContract(
   current: Contract,
