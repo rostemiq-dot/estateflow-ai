@@ -21,6 +21,7 @@ import { formatMoney } from "../features/deals/deal-utils";
 import { loadDocumentMetadata } from "../features/documents/document-storage";
 import { loadProperties } from "../features/properties/property-storage";
 import { loadTasks } from "../features/tasks/task-storage";
+import { loadTeam } from "../features/team/team-storage";
 const input =
   "mt-2 min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
 export function ContractsPage() {
@@ -311,6 +312,7 @@ function ContractEditor({
   onSave: (p: Parameters<typeof updateContract>[1]) => void;
   onStatus: (s: ContractStatus) => void;
 }) {
+  const team = loadTeam();
   const locked = contract.status === "Signed";
   const [terms, setTerms] = useState(contract.terms),
     [contractNumber, setContractNumber] = useState(contract.contractNumber),
@@ -548,8 +550,16 @@ function ContractEditor({
                 <input
                   value={agent}
                   onChange={(e) => setAgent(e.target.value)}
+                  list="contract-team-agents"
                   className={input}
                 />
+                <datalist id="contract-team-agents">
+                  {team
+                    .filter((member) => !member.archived)
+                    .map((member) => (
+                      <option key={member.id} value={member.fullName} />
+                    ))}
+                </datalist>
               </label>
               <label className="block font-semibold">
                 Terms

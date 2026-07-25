@@ -60,6 +60,7 @@ import {
   saveProperties,
 } from "../features/properties/property-storage";
 import { loadTasks } from "../features/tasks/task-storage";
+import { loadTeam } from "../features/team/team-storage";
 import { loadViewings } from "../features/viewings/viewing-storage";
 import { createWhatsAppUrl } from "../lib/whatsapp";
 
@@ -119,6 +120,7 @@ function DealForm({
   onClose: () => void;
   onSave: (draft: DealDraft) => void;
 }) {
+  const team = loadTeam();
   const firstProperty =
     properties.find(
       (property) => property.status !== "Sold" && property.status !== "Rented",
@@ -316,7 +318,15 @@ function DealForm({
               className={inputClass}
               value={agent}
               onChange={(event) => setAgent(event.target.value)}
+              list="deal-team-agents"
             />
+            <datalist id="deal-team-agents">
+              {team
+                .filter((member) => !member.archived)
+                .map((member) => (
+                  <option key={member.id} value={member.fullName} />
+                ))}
+            </datalist>
           </FormField>
           <FormField label="Next action">
             <input

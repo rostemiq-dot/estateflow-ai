@@ -144,6 +144,29 @@ is introduced.
 - Contract empty states explain the accepted-offer prerequisite and link back
   to Deals
 
+### Team + Reports + Administration
+
+- Local Team workspace with owner seed, safe migration, CRUD, archive/reactivate,
+  duplicate-email protection, roles/statuses, agent-name assignment suggestions,
+  workload, and currency-separated performance
+- Professional live Reports workspace with calendar presets, custom ranges,
+  business/deal/property/client/viewing/task/contract/document metrics,
+  separated USD/IQD totals, CSV export, and print layout
+- Automation Center for enabling, disabling, timing, evaluating, and auditing
+  the existing deterministic viewing, offer, payment, contract, task, and
+  follow-up rules
+- Complete Settings workspace for agency profile, localization, business
+  defaults, custom-list migration and protected replacement, appearance,
+  persisted sidebar preference, and validated Merge/Replace JSON backups
+- Backups include EstateFlow localStorage and readable IndexedDB document files
+- In-app Help Center with full workflow, module guides, FAQ, local-data
+  limitations, troubleshooting, shortcuts, version, and schema information
+- Collapsible desktop sidebar, stable header/footer, smooth short-viewport
+  navigation, hidden native scrollbar arrows, focus states, and Escape/scroll
+  locking for the mobile drawer
+- Focused dashboard panels for team workload, sales versus rentals, and
+  automation alerts
+
 ## Storage at this stage
 
 - Properties: `estateflow-properties` in browser localStorage
@@ -157,6 +180,10 @@ is introduced.
 - Document metadata: `estateflow-documents` in browser localStorage
 - Document binary data: `estateflow-document-files` in browser IndexedDB
 - Notification state: `estateflow-notification-state` in browser localStorage
+- Team: `estateflow-team` in browser localStorage
+- Settings: `estateflow-settings` in browser localStorage
+- Automation configuration/history: `estateflow-automations` in browser
+  localStorage
 - Property images are compressed data URLs for this local prototype
 
 Browser storage is intentionally temporary architecture. Before real agency

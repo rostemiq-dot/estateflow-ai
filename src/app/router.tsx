@@ -8,6 +8,11 @@ import { DealsPage } from "../pages/DealsPage";
 import { ContractsPage } from "../pages/ContractsPage";
 import { DocumentsPage } from "../pages/DocumentsPage";
 import { TasksPage } from "../pages/TasksPage";
+import { TeamPage } from "../pages/TeamPage";
+import { ReportsPage } from "../pages/ReportsPage";
+import { AutomationPage } from "../pages/AutomationPage";
+import { SettingsPage } from "../pages/SettingsPage";
+import { HelpPage } from "../pages/HelpPage";
 
 export const router = createBrowserRouter([
   {
@@ -37,4 +42,9 @@ export const router = createBrowserRouter([
   { path: "/contracts", element: <ContractsPage /> },
   { path: "/documents", element: <DocumentsPage /> },
   { path: "/tasks", element: <TasksPage /> },
+  { path: "/team", element: <TeamPage /> },
+  { path: "/reports", element: <ReportsPage /> },
+  { path: "/automation", element: <AutomationPage /> },
+  { path: "/settings", element: <SettingsPage /> },
+  { path: "/help", element: <HelpPage /> },
 ]);

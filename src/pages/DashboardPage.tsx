@@ -13,6 +13,9 @@ import {
 import { loadProperties } from "../features/properties/property-storage";
 import { loadDocumentMetadata } from "../features/documents/document-storage";
 import { loadTasks, taskTiming } from "../features/tasks/task-storage";
+import { loadTeam } from "../features/team/team-storage";
+import { getMemberPerformance } from "../features/team/team-metrics";
+import { loadAutomationRules } from "../features/automation/automation-storage";
 import { derivePaymentStatus } from "../features/deals/deal-utils";
 import { loadViewings } from "../features/viewings/viewing-storage";
 import {
@@ -53,6 +56,8 @@ export function DashboardPage() {
   const deals = loadDeals(clients, properties);
   const contracts = loadContracts();
   const tasks = loadTasks();
+  const team = loadTeam();
+  const automationRules = loadAutomationRules();
   const documents = loadDocumentMetadata();
   const dealMetrics = getDealMetrics(deals);
   const clientById = new Map(clients.map((client) => [client.id, client]));
@@ -131,6 +136,17 @@ export function DashboardPage() {
   const recentDocuments = [...documents]
     .sort((first, second) => second.updatedAt.localeCompare(first.updatedAt))
     .slice(0, 4);
+  const teamPerformance = team
+    .filter((member) => !member.archived)
+    .map((member) => ({
+      member,
+      performance: getMemberPerformance(member, deals, contracts, tasks),
+    }))
+    .sort(
+      (first, second) =>
+        second.performance.wonDeals - first.performance.wonDeals ||
+        second.performance.activeDeals - first.performance.activeDeals,
+    );
   const metrics = [
     {
       label: "Active deals",
@@ -241,6 +257,74 @@ export function DashboardPage() {
             Add a next action to an active deal and it will appear here.
           </p>
         )}
+      </section>
+
+      <section className="mt-8 grid gap-5 xl:grid-cols-3">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold">Team workload</h2>
+            <button
+              onClick={() => navigate("/team")}
+              className="min-h-11 rounded-xl px-3 text-sm font-bold text-amber-700"
+            >
+              Team
+            </button>
+          </div>
+          <div className="mt-3 space-y-3">
+            {teamPerformance.slice(0, 3).map(({ member, performance }) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-xl bg-slate-50 p-3"
+              >
+                <div>
+                  <p className="text-sm font-bold">{member.fullName}</p>
+                  <p className="text-xs text-slate-500">
+                    {performance.activeDeals} active deals
+                  </p>
+                </div>
+                <span className="text-sm font-bold text-rose-600">
+                  {performance.overdueTasks} overdue
+                </span>
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-bold">Sales vs rentals</h2>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => navigate("/reports")}
+              className="rounded-xl bg-amber-50 p-4 text-left"
+            >
+              <p className="text-xs font-bold text-amber-700">SALES</p>
+              <p className="mt-2 text-3xl font-bold">
+                {deals.filter((deal) => deal.type === "Sale").length}
+              </p>
+            </button>
+            <button
+              onClick={() => navigate("/reports")}
+              className="rounded-xl bg-sky-50 p-4 text-left"
+            >
+              <p className="text-xs font-bold text-sky-700">RENTALS</p>
+              <p className="mt-2 text-3xl font-bold">
+                {deals.filter((deal) => deal.type === "Rental").length}
+              </p>
+            </button>
+          </div>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-slate-950 p-5 text-white">
+          <h2 className="font-bold text-amber-400">Automation alerts</h2>
+          <p className="mt-4 text-3xl font-bold">
+            {automationRules.filter((rule) => !rule.enabled).length}
+          </p>
+          <p className="mt-1 text-sm text-slate-400">disabled local rules</p>
+          <button
+            onClick={() => navigate("/automation")}
+            className="mt-4 min-h-11 rounded-xl border border-slate-700 px-4 text-sm font-bold"
+          >
+            Review automations
+          </button>
+        </article>
       </section>
 
       <section className="mt-8">

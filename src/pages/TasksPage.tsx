@@ -36,12 +36,14 @@ import {
   taskTiming,
 } from "../features/tasks/task-storage";
 import { loadViewings } from "../features/viewings/viewing-storage";
+import { loadTeam } from "../features/team/team-storage";
 const field = "min-h-12 rounded-xl border px-4 text-sm";
 export function TasksPage() {
   const [clients] = useState(loadClients),
     [properties] = useState(loadProperties),
     [deals] = useState(() => loadDeals(clients, properties)),
     [contracts] = useState(loadContracts),
+    [team] = useState(loadTeam),
     [viewings] = useState(() => loadViewings(properties));
   const initial = generateAutomatedTasks(
     loadTasks(),
@@ -379,8 +381,16 @@ export function TasksPage() {
               value={agent}
               onChange={(e) => setAgent(e.target.value)}
               placeholder="Responsible agent"
+              list="task-team-agents"
               className={field}
             />
+            <datalist id="task-team-agents">
+              {team
+                .filter((member) => !member.archived)
+                .map((member) => (
+                  <option key={member.id} value={member.fullName} />
+                ))}
+            </datalist>
             <select
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}

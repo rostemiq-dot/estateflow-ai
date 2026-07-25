@@ -39,7 +39,6 @@ export const dashboardNav: DashboardNavGroup[] = [
   {
     label: "System",
     items: [
-      { label: "Notifications", href: "/notifications" },
       { label: "Settings", href: "/settings" },
       { label: "Help", href: "/help" },
     ],
