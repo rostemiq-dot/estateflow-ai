@@ -13,6 +13,7 @@ import {
   loadViewings,
   saveViewings,
 } from "../features/viewings/viewing-storage";
+import { formatViewingDate } from "../features/viewings/viewing-utils";
 import { ClientsPage } from "../pages/ClientsPage";
 import { PropertiesPage } from "../pages/PropertiesPage";
 import { ViewingsPage } from "../pages/ViewingsPage";
@@ -29,6 +30,13 @@ describe("integrated client matching and viewing workflow", () => {
 
   it("creates a typed client, shows live matches, and schedules a viewing", async () => {
     const user = userEvent.setup();
+    const futureDate = new Date();
+    futureDate.setFullYear(futureDate.getFullYear() + 1);
+    const futureDateValue = [
+      futureDate.getFullYear(),
+      String(futureDate.getMonth() + 1).padStart(2, "0"),
+      String(futureDate.getDate()).padStart(2, "0"),
+    ].join("-");
 
     render(
       <MemoryRouter initialEntries={["/clients?add=true"]}>
@@ -81,11 +89,13 @@ describe("integrated client matching and viewing workflow", () => {
     await user.click(
       screen.getAllByRole("button", { name: "Schedule viewing" })[0],
     );
-    await user.type(screen.getByLabelText("Date *"), "2026-07-25");
+    await user.type(screen.getByLabelText("Date *"), futureDateValue);
     await user.type(screen.getByLabelText("Time *"), "10:30");
     await user.click(screen.getByRole("button", { name: "Save viewing" }));
 
-    expect(screen.getByText(/Sat, Jul 25, 2026 at 10:30 AM/)).toBeTruthy();
+    expect(
+      screen.getByText(`${formatViewingDate(futureDateValue)} at 10:30 AM`),
+    ).toBeTruthy();
     expect(loadViewings(properties)).toHaveLength(1);
   });
 

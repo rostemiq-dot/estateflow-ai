@@ -43,10 +43,12 @@ and deal work into one fast, professional workspace.
 - Vitest
 - React Testing Library
 - jsdom
+- Node.js and Express
+- Pino
+- Supertest
 
-This stage intentionally uses browser storage and does not require a paid
-service or backend. Supabase can be connected when authentication, multi-user
-data, and cloud photo storage become the next priority.
+The frontend continues to use browser storage. Phase 1A adds an Express API
+foundation without moving existing data or changing frontend behavior.
 
 ## Run locally
 
@@ -56,6 +58,10 @@ npm run dev
 ```
 
 Open the local URL shown by Vite.
+
+`npm run dev` starts both the Vite client and the API. The API defaults to
+`http://localhost:3000`, with health information at `/api/health`. Copy
+`.env.example` to `.env` to override the validated server configuration.
 
 ## Quality checks
 

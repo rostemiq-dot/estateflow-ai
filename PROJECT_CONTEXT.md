@@ -1,6 +1,6 @@
 # EstateFlow AI — Build Context
 
-Last updated: 25 July 2026
+Last updated: 28 July 2026
 
 ## Product purpose
 
@@ -29,6 +29,16 @@ Playwright, ESLint, Prettier, Git, GitHub, and Supabase when cloud persistence
 is introduced.
 
 ## Completed foundations
+
+### Backend foundation (Phase 1A)
+
+- Express and TypeScript API kept separate from the Vite application
+- Zod-validated environment configuration
+- Helmet, configurable CORS, JSON parsing, and Pino HTTP logging
+- Health endpoint, JSON 404 responses, and global JSON error handling
+- Graceful process shutdown and fatal process error logging
+- Supertest coverage for health and unknown API routes
+- Existing localStorage and IndexedDB persistence remains unchanged
 
 ### Application shell
 
