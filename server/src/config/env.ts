@@ -10,6 +10,13 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  DATABASE_URL: z
+    .string()
+    .regex(
+      /^postgres(?:ql)?:\/\//,
+      "DATABASE_URL must be a PostgreSQL connection URL",
+    )
+    .optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

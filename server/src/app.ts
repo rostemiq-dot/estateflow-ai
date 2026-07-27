@@ -6,6 +6,7 @@ import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFound } from "./middleware/not-found.js";
+import { databaseHealthRouter } from "./routes/database-health.routes.js";
 import { healthRouter } from "./routes/health.routes.js";
 
 export const createApp = () => {
@@ -22,6 +23,7 @@ export const createApp = () => {
   app.use(express.json());
   app.use(pinoHttp({ logger }));
 
+  app.use("/api/health/database", databaseHealthRouter);
   app.use("/api/health", healthRouter);
   app.use(notFound);
   app.use(errorHandler);

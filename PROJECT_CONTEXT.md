@@ -40,6 +40,17 @@ is introduced.
 - Supertest coverage for health and unknown API routes
 - Existing localStorage and IndexedDB persistence remains unchanged
 
+### PostgreSQL and Prisma foundation (Phase 1B)
+
+- PostgreSQL Prisma schema for agencies, users, and properties
+- UUID primary keys, monetary decimal storage, enums, relations, and lookup
+  indexes
+- Development-safe shared Prisma Client
+- Sanitized database readiness endpoint at `GET /api/health/database`
+- Database health tests use an injected Prisma mock; no live database or
+  migration is required
+- Frontend localStorage and IndexedDB persistence remains unchanged
+
 ### Application shell
 
 - Responsive dashboard shell, sidebar, mobile navigation, and top bar

@@ -44,6 +44,7 @@ and deal work into one fast, professional workspace.
 - React Testing Library
 - jsdom
 - Node.js and Express
+- PostgreSQL and Prisma
 - Pino
 - Supertest
 
@@ -62,6 +63,21 @@ Open the local URL shown by Vite.
 `npm run dev` starts both the Vite client and the API. The API defaults to
 `http://localhost:3000`, with health information at `/api/health`. Copy
 `.env.example` to `.env` to override the validated server configuration.
+
+## Database foundation
+
+Phase 1B defines the initial PostgreSQL models for agencies, users, and
+properties. Set `DATABASE_URL` in `.env`, then validate and generate the Prisma
+Client:
+
+```bash
+npm run prisma:validate
+npm run prisma:generate
+```
+
+Create a migration only after connecting an intended PostgreSQL database with
+valid credentials. Database readiness is available at
+`GET /api/health/database`; existing frontend data remains in browser storage.
 
 ## Quality checks
 
