@@ -162,9 +162,37 @@ property relationships. Migration
 `20260728150000_property_media_amenities_tags` is transactional and must be
 reviewed before being applied to Neon.
 
+## Deals pipeline API
+
+Phase 5 adds an authenticated, agency-isolated deals pipeline at `/api/deals`.
+Deals connect active same-agency clients, properties, and agents. Agents see
+only assigned deals; owners and admins see all non-deleted agency deals.
+
+| Method             | Endpoint                           |
+| ------------------ | ---------------------------------- |
+| POST, GET          | `/api/deals`                       |
+| GET, PATCH, DELETE | `/api/deals/:dealId`               |
+| PATCH              | `/api/deals/:dealId/assignment`    |
+| PATCH              | `/api/deals/:dealId/stage`         |
+| GET                | `/api/deals/:dealId/stage-history` |
+| POST, GET          | `/api/deals/:dealId/notes`         |
+| PATCH, DELETE      | `/api/deals/:dealId/notes/:noteId` |
+
+Pipeline stages are `NEW_LEAD`, `QUALIFIED`, `PROPERTY_MATCHED`,
+`VIEWING_SCHEDULED`, `OFFER_SUBMITTED`, `NEGOTIATION`, `CONTRACT`, `WON`, and
+`LOST`. Stage history is append-only. Creation and stage changes write deal and
+history records transactionally, and stage changes use optimistic concurrency.
+WON/LOST closing fields, commissions, financial values, filters, search, and
+pagination are validated. This phase does not implement viewing, contract,
+document, notification, or frontend workflows; their names are pipeline
+milestones only.
+
 ## Quality checks
 
 ```bash
+npm run prisma:format
+npm run prisma:validate
+npm run prisma:generate
 npm run test
 npm run lint
 npm run build

@@ -97,6 +97,21 @@ is introduced.
   Neon
 - Frontend behavior remains unchanged
 
+### Deals pipeline (Phase 5)
+
+- Agency-isolated deal CRUD, assignment, search, filtering, sorting, and
+  pagination
+- Agent access restricted to assigned deals; owner/admin agency-wide access
+- Same-agency active client, property, and assigned-agent validation
+- Transactional initial history and optimistic-concurrency stage changes
+- Append-only stage history and soft-deleted, parent-scoped notes
+- WON/LOST state consistency and closing-field enforcement
+- Fixed and percentage commission validation with non-negative financial data
+- Backend REST API only; no Kanban frontend, viewing, task, notification,
+  document, contract, or external-service integration
+- Transactional migration `20260728210000_deals_pipeline`, generated but not
+  applied to Neon
+
 ### Application shell
 
 - Responsive dashboard shell, sidebar, mobile navigation, and top bar
