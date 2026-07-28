@@ -79,6 +79,27 @@ Create a migration only after connecting an intended PostgreSQL database with
 valid credentials. Database readiness is available at
 `GET /api/health/database`; existing frontend data remains in browser storage.
 
+## Authentication API
+
+The API supports transactional agency-owner registration, bcrypt password
+hashing, short-lived JWT access tokens, rotating refresh tokens, and role-based
+authorization. Refresh tokens are stored as SHA-256 hashes and sent only in an
+HttpOnly cookie.
+
+Configure separate `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` values of at
+least 32 random characters. Production cookies require HTTPS.
+
+| Method | Endpoint             | Purpose                              |
+| ------ | -------------------- | ------------------------------------ |
+| POST   | `/api/auth/register` | Create an agency and its owner       |
+| POST   | `/api/auth/login`    | Authenticate with email and password |
+| POST   | `/api/auth/refresh`  | Rotate the refresh token             |
+| POST   | `/api/auth/logout`   | Revoke the current refresh token     |
+| GET    | `/api/auth/me`       | Return the authenticated user        |
+
+Send access tokens as `Authorization: Bearer <token>`. Access tokens expire
+after 15 minutes; refresh sessions expire after seven days.
+
 ## Quality checks
 
 ```bash

@@ -51,6 +51,19 @@ is introduced.
   migration is required
 - Frontend localStorage and IndexedDB persistence remains unchanged
 
+### Production authentication and authorization (Phase 2)
+
+- Transactional agency and owner registration
+- bcrypt password hashing with 12 work-factor rounds
+- 15-minute JWT access tokens with issuer, audience, and algorithm checks
+- Seven-day rotating refresh tokens stored as SHA-256 hashes
+- Refresh-token family replay detection and revocation
+- HttpOnly, SameSite refresh-token cookies with production HTTPS enforcement
+- Bearer authentication that reloads the current user from PostgreSQL
+- OWNER, ADMIN, and AGENT role authorization middleware
+- Strict Zod validation and consistent credential errors
+- Unit and HTTP tests use dependency injection and do not require Neon
+
 ### Application shell
 
 - Responsive dashboard shell, sidebar, mobile navigation, and top bar
@@ -213,9 +226,10 @@ Supabase/PostgreSQL and private object storage.
 
 ## Next recommended milestone
 
-Add authentication, agency/team roles, shared cloud persistence, private image
-storage, and audit-safe synchronization with Supabase/PostgreSQL before using
-EstateFlow for real multi-user agency operations.
+Connect the frontend to the authenticated API, add invitation and account
+recovery workflows, migrate shared records from browser storage, add private
+object storage, and introduce audit-safe synchronization before real multi-user
+agency operations.
 
 ## Validation baseline
 

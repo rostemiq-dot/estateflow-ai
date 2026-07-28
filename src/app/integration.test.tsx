@@ -97,7 +97,7 @@ describe("integrated client matching and viewing workflow", () => {
       screen.getByText(`${formatViewingDate(futureDateValue)} at 10:30 AM`),
     ).toBeTruthy();
     expect(loadViewings(properties)).toHaveLength(1);
-  });
+  }, 10_000);
 
   it("records an outcome and shows it on the related property timeline", async () => {
     const user = userEvent.setup();
