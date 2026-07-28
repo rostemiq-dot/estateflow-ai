@@ -105,6 +105,39 @@ enum ClientActivityType {
   DEAL_CREATED
 }
 
+enum DealType {
+  SALE
+  RENTAL
+  LEASE
+  DEVELOPMENT
+  INVESTMENT
+  OTHER
+}
+
+enum DealStage {
+  NEW_LEAD
+  QUALIFIED
+  PROPERTY_MATCHED
+  VIEWING_SCHEDULED
+  OFFER_SUBMITTED
+  NEGOTIATION
+  CONTRACT
+  WON
+  LOST
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+  CANCELLED
+}
+
+enum CommissionType {
+  FIXED
+  PERCENTAGE
+}
+
 model Agency {
   id               String           @id @default(uuid()) @db.Uuid
   name             String           @db.VarChar(160)
@@ -119,6 +152,7 @@ model Agency {
   propertyTags     PropertyTag[]
   clients          Client[]
   clientTags       ClientTag[]
+  deals            Deal[]
 
   @@index([name])
   @@index([subscriptionTier])
@@ -126,22 +160,26 @@ model Agency {
 }
 
 model User {
-  id                 String           @id @default(uuid()) @db.Uuid
-  email              String           @unique @db.VarChar(320)
-  passwordHash       String           @map("password_hash") @db.VarChar(255)
-  agencyId           String           @map("agency_id") @db.Uuid
-  role               UserRole         @default(AGENT)
-  isActive           Boolean          @default(true) @map("is_active")
-  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  agency             Agency           @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  ownedAgency        Agency?          @relation("AgencyOwner")
-  createdProperties  Property[]       @relation("PropertyCreator")
-  assignedProperties Property[]       @relation("PropertyAssignedAgent")
+  id                 String             @id @default(uuid()) @db.Uuid
+  email              String             @unique @db.VarChar(320)
+  passwordHash       String             @map("password_hash") @db.VarChar(255)
+  agencyId           String             @map("agency_id") @db.Uuid
+  role               UserRole           @default(AGENT)
+  isActive           Boolean            @default(true) @map("is_active")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  agency             Agency             @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownedAgency        Agency?            @relation("AgencyOwner")
+  createdProperties  Property[]         @relation("PropertyCreator")
+  assignedProperties Property[]         @relation("PropertyAssignedAgent")
   refreshTokens      RefreshToken[]
-  uploadedMedia      PropertyMedia[]  @relation("PropertyMediaUploader")
-  assignedClients    Client[]         @relation("ClientAssignedAgent")
-  clientActivities   ClientActivity[] @relation("ClientActivityCreator")
+  uploadedMedia      PropertyMedia[]    @relation("PropertyMediaUploader")
+  assignedClients    Client[]           @relation("ClientAssignedAgent")
+  clientActivities   ClientActivity[]   @relation("ClientActivityCreator")
+  assignedDeals      Deal[]             @relation("DealAssignedAgent")
+  createdDeals       Deal[]             @relation("DealCreator")
+  dealStageChanges   DealStageHistory[] @relation("DealStageChanger")
+  dealNotes          DealNote[]         @relation("DealNoteCreator")
 
   @@index([agencyId])
   @@index([agencyId, role])
@@ -211,6 +249,7 @@ model Property {
   media           PropertyMedia[]
   amenities       PropertyAmenity[]
   tags            PropertyTagAssignment[]
+  deals           Deal[]
 
   @@unique([agencyId, referenceCode])
   @@index([agencyId, deletedAt])
@@ -340,6 +379,7 @@ model Client {
   preferences       ClientPreference[]
   tags              ClientTagAssignment[]
   activities        ClientActivity[]
+  deals             Deal[]
 
   @@index([agencyId, deletedAt, createdAt])
   @@index([agencyId, assignedAgentId, deletedAt])
@@ -431,4 +471,80 @@ model ClientActivity {
   @@index([createdById])
   @@index([activityType])
   @@map("client_activities")
+}
+
+model Deal {
+  id                 String             @id @default(uuid()) @db.Uuid
+  agencyId           String             @map("agency_id") @db.Uuid
+  clientId           String             @map("client_id") @db.Uuid
+  propertyId         String             @map("property_id") @db.Uuid
+  assignedAgentId    String             @map("assigned_agent_id") @db.Uuid
+  title              String             @db.VarChar(180)
+  dealType           DealType           @map("deal_type")
+  stage              DealStage          @default(NEW_LEAD)
+  status             DealStatus         @default(OPEN)
+  askingPrice        Decimal?           @map("asking_price") @db.Decimal(18, 2)
+  offerAmount        Decimal?           @map("offer_amount") @db.Decimal(18, 2)
+  agreedAmount       Decimal?           @map("agreed_amount") @db.Decimal(18, 2)
+  currency           Currency
+  expectedCommission Decimal?           @map("expected_commission") @db.Decimal(18, 4)
+  commissionType     CommissionType?    @map("commission_type")
+  expectedCloseAt    DateTime?          @map("expected_close_at") @db.Timestamptz(3)
+  closedAt           DateTime?          @map("closed_at") @db.Timestamptz(3)
+  lostReason         String?            @map("lost_reason") @db.VarChar(1000)
+  description        String?            @db.Text
+  createdById        String             @map("created_by_id") @db.Uuid
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(3)
+  agency             Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  client             Client             @relation(fields: [clientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  property           Property           @relation(fields: [propertyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedAgent      User               @relation("DealAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator            User               @relation("DealCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  stageHistory       DealStageHistory[]
+  notes              DealNote[]
+
+  @@index([agencyId, stage, deletedAt])
+  @@index([agencyId, status, deletedAt])
+  @@index([agencyId, assignedAgentId, deletedAt])
+  @@index([agencyId, expectedCloseAt, deletedAt])
+  @@index([agencyId, createdAt, deletedAt])
+  @@index([clientId])
+  @@index([propertyId])
+  @@index([assignedAgentId])
+  @@index([createdById])
+  @@map("deals")
+}
+
+model DealStageHistory {
+  id          String     @id @default(uuid()) @db.Uuid
+  dealId      String     @map("deal_id") @db.Uuid
+  fromStage   DealStage? @map("from_stage")
+  toStage     DealStage  @map("to_stage")
+  changedById String     @map("changed_by_id") @db.Uuid
+  note        String?    @db.VarChar(2000)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  deal        Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  changedBy   User       @relation("DealStageChanger", fields: [changedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([dealId, createdAt])
+  @@index([changedById])
+  @@map("deal_stage_history")
+}
+
+model DealNote {
+  id          String    @id @default(uuid()) @db.Uuid
+  dealId      String    @map("deal_id") @db.Uuid
+  body        String    @db.Text
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy   User      @relation("DealNoteCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([dealId, deletedAt, createdAt])
+  @@index([createdById])
+  @@map("deal_notes")
 }
