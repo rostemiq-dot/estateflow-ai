@@ -139,6 +139,29 @@ Migration `20260728040000_property_management_api` is generated but must be
 reviewed before it is applied to Neon. The existing frontend continues to use
 browser storage during Phase 3A.
 
+## Property media, amenities, and tags API
+
+Phase 3B adds storage-provider-neutral media metadata and agency-scoped
+amenity/tag catalogs. It does not upload files or integrate object storage.
+Media supports `IMAGE`, `VIDEO`, `PDF`, `FLOOR_PLAN`, and `TOUR_360`, ordered
+display, a single cover selection during writes, typed MIME validation, and
+soft deletion.
+
+| Method              | Endpoint                                     | Roles               |
+| ------------------- | -------------------------------------------- | ------------------- |
+| GET, POST           | `/api/properties/:propertyId/media`          | Authenticated / all |
+| PATCH, DELETE       | `/api/properties/:propertyId/media/:mediaId` | All roles           |
+| GET                 | `/api/amenities`, `/api/amenities/:id`       | Authenticated users |
+| POST, PATCH, DELETE | `/api/amenities`, `/api/amenities/:id`       | OWNER, ADMIN        |
+| GET                 | `/api/tags`, `/api/tags/:id`                 | Authenticated users |
+| POST, PATCH, DELETE | `/api/tags`, `/api/tags/:id`                 | OWNER, ADMIN        |
+
+Amenities and tags are unique by agency and slug. The schema also includes the
+composite-key `PropertyAmenity` and `PropertyTagAssignment` join models for
+property relationships. Migration
+`20260728150000_property_media_amenities_tags` is transactional and must be
+reviewed before being applied to Neon.
+
 ## Quality checks
 
 ```bash

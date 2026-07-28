@@ -51,6 +51,14 @@ enum Currency {
   IQD
 }
 
+enum PropertyMediaType {
+  IMAGE
+  VIDEO
+  PDF
+  FLOOR_PLAN
+  TOUR_360
+}
+
 model Agency {
   id               String           @id @default(uuid()) @db.Uuid
   name             String           @db.VarChar(160)
@@ -61,6 +69,8 @@ model Agency {
   owner            User?            @relation("AgencyOwner", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   users            User[]           @relation("AgencyUsers")
   properties       Property[]
+  amenities        Amenity[]
+  propertyTags     PropertyTag[]
 
   @@index([name])
   @@index([subscriptionTier])
@@ -68,19 +78,20 @@ model Agency {
 }
 
 model User {
-  id                 String         @id @default(uuid()) @db.Uuid
-  email              String         @unique @db.VarChar(320)
-  passwordHash       String         @map("password_hash") @db.VarChar(255)
-  agencyId           String         @map("agency_id") @db.Uuid
-  role               UserRole       @default(AGENT)
-  isActive           Boolean        @default(true) @map("is_active")
-  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  agency             Agency         @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  ownedAgency        Agency?        @relation("AgencyOwner")
-  createdProperties  Property[]     @relation("PropertyCreator")
-  assignedProperties Property[]     @relation("PropertyAssignedAgent")
+  id                 String          @id @default(uuid()) @db.Uuid
+  email              String          @unique @db.VarChar(320)
+  passwordHash       String          @map("password_hash") @db.VarChar(255)
+  agencyId           String          @map("agency_id") @db.Uuid
+  role               UserRole        @default(AGENT)
+  isActive           Boolean         @default(true) @map("is_active")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  agency             Agency          @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownedAgency        Agency?         @relation("AgencyOwner")
+  createdProperties  Property[]      @relation("PropertyCreator")
+  assignedProperties Property[]      @relation("PropertyAssignedAgent")
   refreshTokens      RefreshToken[]
+  uploadedMedia      PropertyMedia[] @relation("PropertyMediaUploader")
 
   @@index([agencyId])
   @@index([agencyId, role])
@@ -113,40 +124,43 @@ model RefreshToken {
 }
 
 model Property {
-  id              String          @id @default(uuid()) @db.Uuid
-  agencyId        String          @map("agency_id") @db.Uuid
-  createdById     String          @map("created_by_id") @db.Uuid
-  assignedAgentId String?         @map("assigned_agent_id") @db.Uuid
-  title           String          @db.VarChar(180)
-  description     String?         @db.Text
-  referenceCode   String          @map("reference_code") @db.VarChar(50)
+  id              String                  @id @default(uuid()) @db.Uuid
+  agencyId        String                  @map("agency_id") @db.Uuid
+  createdById     String                  @map("created_by_id") @db.Uuid
+  assignedAgentId String?                 @map("assigned_agent_id") @db.Uuid
+  title           String                  @db.VarChar(180)
+  description     String?                 @db.Text
+  referenceCode   String                  @map("reference_code") @db.VarChar(50)
   purpose         PropertyPurpose
-  propertyType    PropertyType    @map("property_type")
-  status          PropertyStatus  @default(DRAFT)
-  price           Decimal         @db.Decimal(18, 2)
+  propertyType    PropertyType            @map("property_type")
+  status          PropertyStatus          @default(DRAFT)
+  price           Decimal                 @db.Decimal(18, 2)
   currency        Currency
-  country         String          @db.VarChar(100)
-  city            String          @db.VarChar(120)
-  district        String?         @db.VarChar(120)
-  neighborhood    String?         @db.VarChar(160)
-  address         String?         @db.VarChar(500)
-  latitude        Decimal?        @db.Decimal(9, 6)
-  longitude       Decimal?        @db.Decimal(9, 6)
+  country         String                  @db.VarChar(100)
+  city            String                  @db.VarChar(120)
+  district        String?                 @db.VarChar(120)
+  neighborhood    String?                 @db.VarChar(160)
+  address         String?                 @db.VarChar(500)
+  latitude        Decimal?                @db.Decimal(9, 6)
+  longitude       Decimal?                @db.Decimal(9, 6)
   bedrooms        Int?
   bathrooms       Int?
-  areaSqm         Decimal?        @map("area_sqm") @db.Decimal(14, 2)
+  areaSqm         Decimal?                @map("area_sqm") @db.Decimal(14, 2)
   floor           Int?
-  totalFloors     Int?            @map("total_floors")
-  parkingSpaces   Int?            @map("parking_spaces")
-  yearBuilt       Int?            @map("year_built")
-  furnished       Boolean         @default(false)
-  notes           String?         @db.Text
-  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(3)
-  agency          Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  creator         User            @relation("PropertyCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  assignedAgent   User?           @relation("PropertyAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  totalFloors     Int?                    @map("total_floors")
+  parkingSpaces   Int?                    @map("parking_spaces")
+  yearBuilt       Int?                    @map("year_built")
+  furnished       Boolean                 @default(false)
+  notes           String?                 @db.Text
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?               @map("deleted_at") @db.Timestamptz(3)
+  agency          Agency                  @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  creator         User                    @relation("PropertyCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedAgent   User?                   @relation("PropertyAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  media           PropertyMedia[]
+  amenities       PropertyAmenity[]
+  tags            PropertyTagAssignment[]
 
   @@unique([agencyId, referenceCode])
   @@index([agencyId, deletedAt])
@@ -157,4 +171,91 @@ model Property {
   @@index([agencyId, deletedAt, createdAt])
   @@index([createdById])
   @@map("properties")
+}
+
+model PropertyMedia {
+  id            String            @id @default(uuid()) @db.Uuid
+  propertyId    String            @map("property_id") @db.Uuid
+  mediaType     PropertyMediaType @map("media_type")
+  storagePath   String            @map("storage_path") @db.VarChar(1000)
+  thumbnailPath String?           @map("thumbnail_path") @db.VarChar(1000)
+  fileName      String            @map("file_name") @db.VarChar(255)
+  mimeType      String            @map("mime_type") @db.VarChar(150)
+  fileSize      BigInt            @map("file_size")
+  width         Int?
+  height        Int?
+  duration      Int?
+  displayOrder  Int               @default(0) @map("display_order")
+  isCover       Boolean           @default(false) @map("is_cover")
+  metadata      Json?
+  uploadedById  String            @map("uploaded_by_id") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  property      Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploadedBy    User              @relation("PropertyMediaUploader", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([propertyId, deletedAt, displayOrder])
+  @@index([propertyId, mediaType, deletedAt])
+  @@index([propertyId, isCover, deletedAt])
+  @@index([uploadedById])
+  @@map("property_media")
+}
+
+model Amenity {
+  id         String            @id @default(uuid()) @db.Uuid
+  agencyId   String            @map("agency_id") @db.Uuid
+  name       String            @db.VarChar(120)
+  slug       String            @db.VarChar(120)
+  icon       String?           @db.VarChar(120)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt  DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  agency     Agency            @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  properties PropertyAmenity[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, deletedAt, name])
+  @@map("amenities")
+}
+
+model PropertyAmenity {
+  propertyId String   @map("property_id") @db.Uuid
+  amenityId  String   @map("amenity_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([propertyId, amenityId])
+  @@index([amenityId])
+  @@map("property_amenities")
+}
+
+model PropertyTag {
+  id         String                  @id @default(uuid()) @db.Uuid
+  agencyId   String                  @map("agency_id") @db.Uuid
+  name       String                  @db.VarChar(120)
+  slug       String                  @db.VarChar(120)
+  color      String?                 @db.VarChar(7)
+  createdAt  DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt  DateTime?               @map("deleted_at") @db.Timestamptz(3)
+  agency     Agency                  @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  properties PropertyTagAssignment[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, deletedAt, name])
+  @@map("property_tags")
+}
+
+model PropertyTagAssignment {
+  propertyId String      @map("property_id") @db.Uuid
+  tagId      String      @map("tag_id") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  property   Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag        PropertyTag @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([propertyId, tagId])
+  @@index([tagId])
+  @@map("property_tag_assignments")
 }

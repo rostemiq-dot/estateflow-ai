@@ -79,6 +79,24 @@ is introduced.
   to Neon
 - Existing frontend localStorage and IndexedDB behavior remains unchanged
 
+### Property media, amenities, and tags (Phase 3B)
+
+- Storage-provider-neutral property media metadata; no upload or storage
+  integration
+- Image, video, PDF, floor-plan, and future 360-tour media enum
+- MIME/media-type validation, ordered display, cover selection, dimensions,
+  duration, file metadata, and JSON provider metadata
+- Agency-isolated repositories and soft deletion for media and catalogs
+- Agency-owned amenity and property-tag catalogs with slug uniqueness
+- Composite-key property/amenity and property/tag join tables
+- Authenticated media reads and role-authorized mutations
+- OWNER/ADMIN catalog mutations with authenticated catalog reads
+- Repository, service, route, and validation coverage
+- Transactional migration
+  `20260728150000_property_media_amenities_tags`, generated but not applied to
+  Neon
+- Frontend behavior remains unchanged
+
 ### Application shell
 
 - Responsive dashboard shell, sidebar, mobile navigation, and top bar
