@@ -59,6 +59,52 @@ enum PropertyMediaType {
   TOUR_360
 }
 
+enum ClientRoleType {
+  BUYER
+  SELLER
+  LANDLORD
+  TENANT
+  INVESTOR
+  DEVELOPER
+}
+
+enum ClientLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NURTURING
+  CONVERTED
+  LOST
+}
+
+enum ClientLeadSource {
+  REFERRAL
+  WEBSITE
+  SOCIAL_MEDIA
+  PROPERTY_PORTAL
+  WALK_IN
+  PHONE
+  OTHER
+}
+
+enum ClientPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ClientActivityType {
+  CALL
+  WHATSAPP
+  EMAIL
+  MEETING
+  VIEWING
+  NOTE
+  OFFER
+  DEAL_CREATED
+}
+
 model Agency {
   id               String           @id @default(uuid()) @db.Uuid
   name             String           @db.VarChar(160)
@@ -71,6 +117,8 @@ model Agency {
   properties       Property[]
   amenities        Amenity[]
   propertyTags     PropertyTag[]
+  clients          Client[]
+  clientTags       ClientTag[]
 
   @@index([name])
   @@index([subscriptionTier])
@@ -78,20 +126,22 @@ model Agency {
 }
 
 model User {
-  id                 String          @id @default(uuid()) @db.Uuid
-  email              String          @unique @db.VarChar(320)
-  passwordHash       String          @map("password_hash") @db.VarChar(255)
-  agencyId           String          @map("agency_id") @db.Uuid
-  role               UserRole        @default(AGENT)
-  isActive           Boolean         @default(true) @map("is_active")
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
-  agency             Agency          @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  ownedAgency        Agency?         @relation("AgencyOwner")
-  createdProperties  Property[]      @relation("PropertyCreator")
-  assignedProperties Property[]      @relation("PropertyAssignedAgent")
+  id                 String           @id @default(uuid()) @db.Uuid
+  email              String           @unique @db.VarChar(320)
+  passwordHash       String           @map("password_hash") @db.VarChar(255)
+  agencyId           String           @map("agency_id") @db.Uuid
+  role               UserRole         @default(AGENT)
+  isActive           Boolean          @default(true) @map("is_active")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  agency             Agency           @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownedAgency        Agency?          @relation("AgencyOwner")
+  createdProperties  Property[]       @relation("PropertyCreator")
+  assignedProperties Property[]       @relation("PropertyAssignedAgent")
   refreshTokens      RefreshToken[]
-  uploadedMedia      PropertyMedia[] @relation("PropertyMediaUploader")
+  uploadedMedia      PropertyMedia[]  @relation("PropertyMediaUploader")
+  assignedClients    Client[]         @relation("ClientAssignedAgent")
+  clientActivities   ClientActivity[] @relation("ClientActivityCreator")
 
   @@index([agencyId])
   @@index([agencyId, role])
@@ -258,4 +308,127 @@ model PropertyTagAssignment {
   @@id([propertyId, tagId])
   @@index([tagId])
   @@map("property_tag_assignments")
+}
+
+model Client {
+  id                String                @id @default(uuid()) @db.Uuid
+  agencyId          String                @map("agency_id") @db.Uuid
+  assignedAgentId   String?               @map("assigned_agent_id") @db.Uuid
+  firstName         String                @map("first_name") @db.VarChar(100)
+  lastName          String                @map("last_name") @db.VarChar(100)
+  fullName          String                @map("full_name") @db.VarChar(201)
+  email             String?               @db.VarChar(320)
+  phone             String                @db.VarChar(30)
+  secondaryPhone    String?               @map("secondary_phone") @db.VarChar(30)
+  whatsapp          String?               @db.VarChar(30)
+  nationality       String?               @db.VarChar(100)
+  preferredLanguage String?               @map("preferred_language") @db.VarChar(50)
+  company           String?               @db.VarChar(160)
+  leadStatus        ClientLeadStatus      @default(NEW) @map("lead_status")
+  leadSource        ClientLeadSource?     @map("lead_source")
+  priority          ClientPriority        @default(MEDIUM)
+  rating            Int?
+  notes             String?               @db.Text
+  nextFollowUpAt    DateTime?             @map("next_follow_up_at") @db.Timestamptz(3)
+  lastContactAt     DateTime?             @map("last_contact_at") @db.Timestamptz(3)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  agency            Agency                @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignedAgent     User?                 @relation("ClientAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  roles             ClientRole[]
+  preferences       ClientPreference[]
+  tags              ClientTagAssignment[]
+  activities        ClientActivity[]
+
+  @@index([agencyId, deletedAt, createdAt])
+  @@index([agencyId, assignedAgentId, deletedAt])
+  @@index([agencyId, leadStatus, deletedAt])
+  @@index([agencyId, leadSource, deletedAt])
+  @@index([agencyId, priority, deletedAt])
+  @@index([agencyId, fullName])
+  @@index([agencyId, phone])
+  @@index([agencyId, email])
+  @@index([assignedAgentId])
+  @@map("clients")
+}
+
+model ClientRole {
+  clientId  String         @map("client_id") @db.Uuid
+  role      ClientRoleType
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([clientId, role])
+  @@index([role, clientId])
+  @@map("client_roles")
+}
+
+model ClientPreference {
+  id           String       @id @default(uuid()) @db.Uuid
+  clientId     String       @map("client_id") @db.Uuid
+  propertyType PropertyType @map("property_type")
+  city         String       @db.VarChar(120)
+  district     String?      @db.VarChar(120)
+  bedrooms     Int?
+  bathrooms    Int?
+  minArea      Decimal?     @map("min_area") @db.Decimal(14, 2)
+  maxArea      Decimal?     @map("max_area") @db.Decimal(14, 2)
+  minBudget    Decimal?     @map("min_budget") @db.Decimal(18, 2)
+  maxBudget    Decimal?     @map("max_budget") @db.Decimal(18, 2)
+  currency     Currency
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([clientId, deletedAt])
+  @@index([propertyType, city])
+  @@map("client_preferences")
+}
+
+model ClientTag {
+  id          String                @id @default(uuid()) @db.Uuid
+  agencyId    String                @map("agency_id") @db.Uuid
+  name        String                @db.VarChar(120)
+  slug        String                @db.VarChar(120)
+  color       String?               @db.VarChar(7)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  agency      Agency                @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignments ClientTagAssignment[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, deletedAt, name])
+  @@map("client_tags")
+}
+
+model ClientTagAssignment {
+  clientId  String    @map("client_id") @db.Uuid
+  tagId     String    @map("tag_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag       ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([clientId, tagId])
+  @@index([tagId, clientId])
+  @@map("client_tag_assignments")
+}
+
+model ClientActivity {
+  id           String             @id @default(uuid()) @db.Uuid
+  clientId     String             @map("client_id") @db.Uuid
+  activityType ClientActivityType @map("activity_type")
+  description  String             @db.Text
+  metadata     Json?
+  createdById  String             @map("created_by_id") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  client       Client             @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy    User               @relation("ClientActivityCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([clientId, createdAt])
+  @@index([createdById])
+  @@index([activityType])
+  @@map("client_activities")
 }

@@ -8,6 +8,10 @@ import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFound } from "./middleware/not-found.js";
 import { authRouter } from "./modules/auth/routes/auth.routes.js";
+import {
+  clientRouter,
+  clientTagRouter,
+} from "./modules/clients/routes/client.routes.js";
 import { propertyRouter } from "./modules/properties/routes/property.routes.js";
 import {
   amenityRouter,
@@ -33,6 +37,8 @@ export const createApp = () => {
   app.use(pinoHttp({ logger }));
 
   app.use("/api/auth", authRouter);
+  app.use("/api/clients", clientRouter);
+  app.use("/api/client-tags", clientTagRouter);
   app.use("/api/properties", propertyRouter);
   app.use("/api/properties/:propertyId/media", mediaRouter);
   app.use("/api/amenities", amenityRouter);
