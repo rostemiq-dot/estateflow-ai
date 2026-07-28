@@ -22,11 +22,33 @@ enum SubscriptionTier {
 
 enum PropertyStatus {
   DRAFT
-  ACTIVE
-  PENDING
+  AVAILABLE
+  RESERVED
   SOLD
   RENTED
-  ARCHIVED
+  OFF_MARKET
+}
+
+enum PropertyPurpose {
+  SALE
+  RENT
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  VILLA
+  LAND
+  OFFICE
+  SHOP
+  WAREHOUSE
+  BUILDING
+  OTHER
+}
+
+enum Currency {
+  USD
+  IQD
 }
 
 model Agency {
@@ -46,20 +68,23 @@ model Agency {
 }
 
 model User {
-  id                String         @id @default(uuid()) @db.Uuid
-  email             String         @unique @db.VarChar(320)
-  passwordHash      String         @map("password_hash") @db.VarChar(255)
-  agencyId          String         @map("agency_id") @db.Uuid
-  role              UserRole       @default(AGENT)
-  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  agency            Agency         @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  ownedAgency       Agency?        @relation("AgencyOwner")
-  createdProperties Property[]     @relation("PropertyCreator")
-  refreshTokens     RefreshToken[]
+  id                 String         @id @default(uuid()) @db.Uuid
+  email              String         @unique @db.VarChar(320)
+  passwordHash       String         @map("password_hash") @db.VarChar(255)
+  agencyId           String         @map("agency_id") @db.Uuid
+  role               UserRole       @default(AGENT)
+  isActive           Boolean        @default(true) @map("is_active")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  agency             Agency         @relation("AgencyUsers", fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  ownedAgency        Agency?        @relation("AgencyOwner")
+  createdProperties  Property[]     @relation("PropertyCreator")
+  assignedProperties Property[]     @relation("PropertyAssignedAgent")
+  refreshTokens      RefreshToken[]
 
   @@index([agencyId])
   @@index([agencyId, role])
+  @@index([agencyId, isActive])
   @@index([createdAt])
   @@map("users")
 }
@@ -88,20 +113,48 @@ model RefreshToken {
 }
 
 model Property {
-  id        String         @id @default(uuid()) @db.Uuid
-  agencyId  String         @map("agency_id") @db.Uuid
-  address   String         @db.VarChar(500)
-  price     Decimal        @db.Decimal(18, 2)
-  status    PropertyStatus @default(DRAFT)
-  createdBy String         @map("created_by") @db.Uuid
-  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  agency    Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  creator   User           @relation("PropertyCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  id              String          @id @default(uuid()) @db.Uuid
+  agencyId        String          @map("agency_id") @db.Uuid
+  createdById     String          @map("created_by_id") @db.Uuid
+  assignedAgentId String?         @map("assigned_agent_id") @db.Uuid
+  title           String          @db.VarChar(180)
+  description     String?         @db.Text
+  referenceCode   String          @map("reference_code") @db.VarChar(50)
+  purpose         PropertyPurpose
+  propertyType    PropertyType    @map("property_type")
+  status          PropertyStatus  @default(DRAFT)
+  price           Decimal         @db.Decimal(18, 2)
+  currency        Currency
+  country         String          @db.VarChar(100)
+  city            String          @db.VarChar(120)
+  district        String?         @db.VarChar(120)
+  neighborhood    String?         @db.VarChar(160)
+  address         String?         @db.VarChar(500)
+  latitude        Decimal?        @db.Decimal(9, 6)
+  longitude       Decimal?        @db.Decimal(9, 6)
+  bedrooms        Int?
+  bathrooms       Int?
+  areaSqm         Decimal?        @map("area_sqm") @db.Decimal(14, 2)
+  floor           Int?
+  totalFloors     Int?            @map("total_floors")
+  parkingSpaces   Int?            @map("parking_spaces")
+  yearBuilt       Int?            @map("year_built")
+  furnished       Boolean         @default(false)
+  notes           String?         @db.Text
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  agency          Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  creator         User            @relation("PropertyCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedAgent   User?           @relation("PropertyAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  @@index([agencyId])
-  @@index([agencyId, status])
-  @@index([agencyId, createdAt])
-  @@index([createdBy])
+  @@unique([agencyId, referenceCode])
+  @@index([agencyId, deletedAt])
+  @@index([agencyId, status, deletedAt])
+  @@index([agencyId, assignedAgentId, deletedAt])
+  @@index([agencyId, city, deletedAt])
+  @@index([agencyId, propertyType, deletedAt])
+  @@index([agencyId, deletedAt, createdAt])
+  @@index([createdById])
   @@map("properties")
 }

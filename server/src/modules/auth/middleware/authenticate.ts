@@ -19,7 +19,7 @@ export const createAuthenticate = (
       const payload = tokens.verifyAccessToken(match[1]);
       const user = await repository.findUserById(payload.sub);
 
-      if (!user || user.agencyId !== payload.agencyId) {
+      if (!user || !user.isActive || user.agencyId !== payload.agencyId) {
         throw new AppError("Authentication required", 401);
       }
 

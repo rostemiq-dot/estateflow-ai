@@ -100,6 +100,45 @@ least 32 random characters. Production cookies require HTTPS.
 Send access tokens as `Authorization: Bearer <token>`. Access tokens expire
 after 15 minutes; refresh sessions expire after seven days.
 
+## Property API
+
+All property endpoints require a Bearer access token. Every database operation
+is scoped to the authenticated user's agency, and deleted properties are
+excluded through `deletedAt: null`.
+
+| Method | Endpoint                      | Roles               |
+| ------ | ----------------------------- | ------------------- |
+| POST   | `/api/properties`             | OWNER, ADMIN, AGENT |
+| GET    | `/api/properties`             | Authenticated users |
+| GET    | `/api/properties/:propertyId` | Authenticated users |
+| PATCH  | `/api/properties/:propertyId` | OWNER, ADMIN, AGENT |
+| DELETE | `/api/properties/:propertyId` | OWNER, ADMIN        |
+
+Agents can update only properties they created or are assigned to, and they can
+assign properties only to themselves. Owners and admins can assign any active
+user in their agency. Deletes are soft deletes.
+
+The listing endpoint supports `page`, `pageSize`, `search`, `status`,
+`propertyType`, `purpose`, `currency`, `city`, `district`, `assignedAgentId`,
+price/bedroom/area ranges, `sortBy`, and `sortOrder`. The default page size is
+20 and the maximum is 100:
+
+```json
+{
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+```
+
+Migration `20260728040000_property_management_api` is generated but must be
+reviewed before it is applied to Neon. The existing frontend continues to use
+browser storage during Phase 3A.
+
 ## Quality checks
 
 ```bash

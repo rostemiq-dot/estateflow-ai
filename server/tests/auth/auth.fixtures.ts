@@ -11,6 +11,7 @@ export const userFixture: AuthUserRecord = {
   passwordHash: "stored-password-hash",
   agencyId: "22222222-2222-4222-8222-222222222222",
   role: UserRole.OWNER,
+  isActive: true,
   createdAt: new Date("2026-07-28T00:00:00.000Z"),
   updatedAt: new Date("2026-07-28T00:00:00.000Z"),
 };

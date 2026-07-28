@@ -220,6 +220,7 @@ const toPublicUser = (user: AuthUserRecord): PublicUser => ({
   email: user.email,
   agencyId: user.agencyId,
   role: user.role,
+  isActive: user.isActive,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });

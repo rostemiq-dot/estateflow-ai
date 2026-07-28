@@ -8,6 +8,7 @@ import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFound } from "./middleware/not-found.js";
 import { authRouter } from "./modules/auth/routes/auth.routes.js";
+import { propertyRouter } from "./modules/properties/routes/property.routes.js";
 import { databaseHealthRouter } from "./routes/database-health.routes.js";
 import { healthRouter } from "./routes/health.routes.js";
 
@@ -27,6 +28,7 @@ export const createApp = () => {
   app.use(pinoHttp({ logger }));
 
   app.use("/api/auth", authRouter);
+  app.use("/api/properties", propertyRouter);
   app.use("/api/health/database", databaseHealthRouter);
   app.use("/api/health", healthRouter);
   app.use(notFound);

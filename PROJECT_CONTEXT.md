@@ -64,6 +64,21 @@ is introduced.
 - Strict Zod validation and consistent credential errors
 - Unit and HTTP tests use dependency injection and do not require Neon
 
+### Production property management API (Phase 3A)
+
+- Authenticated create, list, detail, update, and soft-delete endpoints
+- Strict repository-level agency isolation for every property operation
+- OWNER and ADMIN full property management permissions
+- AGENT create access and creator/assignment-scoped update permissions
+- Same-agency active-user assignment validation
+- Agency-scoped reference-code uniqueness
+- Search, filters, pagination, range validation, and deterministic sorting
+- Decimal-backed prices, areas, and geographic coordinates
+- Soft-deleted properties consistently excluded from reads and mutations
+- Migration `20260728040000_property_management_api` generated but not applied
+  to Neon
+- Existing frontend localStorage and IndexedDB behavior remains unchanged
+
 ### Application shell
 
 - Responsive dashboard shell, sidebar, mobile navigation, and top bar

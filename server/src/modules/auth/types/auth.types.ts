@@ -6,6 +6,7 @@ export type AuthUserRecord = {
   passwordHash: string;
   agencyId: string;
   role: UserRole;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
