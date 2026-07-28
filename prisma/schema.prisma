@@ -138,6 +138,19 @@ enum CommissionType {
   PERCENTAGE
 }
 
+enum ViewingStatus {
+  SCHEDULED
+  CONFIRMED
+  RESCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum DealActivityType {
+  VIEWING_SCHEDULED
+}
+
 model Agency {
   id               String           @id @default(uuid()) @db.Uuid
   name             String           @db.VarChar(160)
@@ -153,6 +166,7 @@ model Agency {
   clients          Client[]
   clientTags       ClientTag[]
   deals            Deal[]
+  viewings         Viewing[]
 
   @@index([name])
   @@index([subscriptionTier])
@@ -180,6 +194,9 @@ model User {
   createdDeals       Deal[]             @relation("DealCreator")
   dealStageChanges   DealStageHistory[] @relation("DealStageChanger")
   dealNotes          DealNote[]         @relation("DealNoteCreator")
+  assignedViewings   Viewing[]          @relation("ViewingAssignedAgent")
+  createdViewings    Viewing[]          @relation("ViewingCreator")
+  dealActivities     DealActivity[]     @relation("DealActivityCreator")
 
   @@index([agencyId])
   @@index([agencyId, role])
@@ -250,6 +267,7 @@ model Property {
   amenities       PropertyAmenity[]
   tags            PropertyTagAssignment[]
   deals           Deal[]
+  viewings        Viewing[]
 
   @@unique([agencyId, referenceCode])
   @@index([agencyId, deletedAt])
@@ -380,6 +398,7 @@ model Client {
   tags              ClientTagAssignment[]
   activities        ClientActivity[]
   deals             Deal[]
+  viewings          Viewing[]
 
   @@index([agencyId, deletedAt, createdAt])
   @@index([agencyId, assignedAgentId, deletedAt])
@@ -459,12 +478,14 @@ model ClientTagAssignment {
 model ClientActivity {
   id           String             @id @default(uuid()) @db.Uuid
   clientId     String             @map("client_id") @db.Uuid
+  viewingId    String?            @unique @map("viewing_id") @db.Uuid
   activityType ClientActivityType @map("activity_type")
   description  String             @db.Text
   metadata     Json?
   createdById  String             @map("created_by_id") @db.Uuid
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   client       Client             @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  viewing      Viewing?           @relation(fields: [viewingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   createdBy    User               @relation("ClientActivityCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([clientId, createdAt])
@@ -504,6 +525,8 @@ model Deal {
   creator            User               @relation("DealCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
   stageHistory       DealStageHistory[]
   notes              DealNote[]
+  viewings           Viewing[]
+  activities         DealActivity[]
 
   @@index([agencyId, stage, deletedAt])
   @@index([agencyId, status, deletedAt])
@@ -547,4 +570,62 @@ model DealNote {
   @@index([dealId, deletedAt, createdAt])
   @@index([createdById])
   @@map("deal_notes")
+}
+
+model Viewing {
+  id                 String          @id @default(uuid()) @db.Uuid
+  agencyId           String          @map("agency_id") @db.Uuid
+  propertyId         String          @map("property_id") @db.Uuid
+  clientId           String          @map("client_id") @db.Uuid
+  dealId             String?         @map("deal_id") @db.Uuid
+  assignedAgentId    String          @map("assigned_agent_id") @db.Uuid
+  title              String          @db.VarChar(180)
+  description        String?         @db.Text
+  status             ViewingStatus   @default(SCHEDULED)
+  startAt            DateTime        @map("start_at") @db.Timestamptz(3)
+  endAt              DateTime        @map("end_at") @db.Timestamptz(3)
+  timezone           String          @db.VarChar(100)
+  location           String?         @db.VarChar(500)
+  outcome            String?         @db.VarChar(2000)
+  cancellationReason String?         @map("cancellation_reason") @db.VarChar(1000)
+  feedback           String?         @db.Text
+  createdById        String          @map("created_by_id") @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  agency             Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  property           Property        @relation(fields: [propertyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  deal               Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  assignedAgent      User            @relation("ViewingAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator            User            @relation("ViewingCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  clientActivity     ClientActivity?
+  dealActivity       DealActivity?
+
+  @@index([agencyId, startAt, deletedAt])
+  @@index([agencyId, status, startAt, deletedAt])
+  @@index([agencyId, assignedAgentId, startAt, endAt, deletedAt])
+  @@index([clientId])
+  @@index([propertyId])
+  @@index([dealId])
+  @@index([assignedAgentId])
+  @@index([createdById])
+  @@map("viewings")
+}
+
+model DealActivity {
+  id           String           @id @default(uuid()) @db.Uuid
+  dealId       String           @map("deal_id") @db.Uuid
+  viewingId    String           @unique @map("viewing_id") @db.Uuid
+  activityType DealActivityType @map("activity_type")
+  description  String           @db.Text
+  createdById  String           @map("created_by_id") @db.Uuid
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  deal         Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  viewing      Viewing          @relation(fields: [viewingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy    User             @relation("DealActivityCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([dealId, createdAt])
+  @@index([createdById])
+  @@map("deal_activities")
 }

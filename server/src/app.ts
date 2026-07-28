@@ -13,6 +13,7 @@ import {
   clientTagRouter,
 } from "./modules/clients/routes/client.routes.js";
 import { dealRouter } from "./modules/deals/routes/deal.routes.js";
+import { viewingRouter } from "./modules/viewings/routes/viewing.routes.js";
 import { propertyRouter } from "./modules/properties/routes/property.routes.js";
 import {
   amenityRouter,
@@ -41,6 +42,7 @@ export const createApp = () => {
   app.use("/api/clients", clientRouter);
   app.use("/api/client-tags", clientTagRouter);
   app.use("/api/deals", dealRouter);
+  app.use("/api/viewings", viewingRouter);
   app.use("/api/properties", propertyRouter);
   app.use("/api/properties/:propertyId/media", mediaRouter);
   app.use("/api/amenities", amenityRouter);
