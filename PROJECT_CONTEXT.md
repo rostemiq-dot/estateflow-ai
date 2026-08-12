@@ -112,6 +112,28 @@ is introduced.
 - Transactional migration `20260728210000_deals_pipeline`, generated but not
   applied to Neon
 
+### Viewings and Calendar API (Phase 6)
+
+- Agency-isolated viewing scheduling and calendar listing
+- Same-agency active client, property, deal, and assigned-agent validation
+- Agent access restricted to assigned viewings; owner/admin agency-wide access
+- Scheduling conflict detection for assigned agents
+- Serializable transactions for viewing creation and lifecycle updates
+- Viewing lifecycle states: scheduled, confirmed, rescheduled, completed,
+  cancelled, and no-show
+- Completion requires an outcome; cancellation requires a cancellation reason
+- Soft deletion with non-deleted reads and mutations
+- ClientActivity and DealActivity viewing relationships with durable uniqueness
+- Transactional activity logging for scheduled viewings
+- Transactional migration `20260728230000_viewings_calendar`, generated but not
+  applied to Neon
+- Backend REST API only; the current frontend viewing calendar still uses
+  browser localStorage until frontend API integration
+- Merged into `main` at commit `d2885f8`
+- Milestone 1 validation on 8 August 2026: Prisma format, validate, generate,
+  lint, 233 tests across 44 files, production build, and `git diff --check`
+  passed
+
 ### Application shell
 
 - Responsive dashboard shell, sidebar, mobile navigation, and top bar

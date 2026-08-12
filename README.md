@@ -187,6 +187,25 @@ pagination are validated. This phase does not implement viewing, contract,
 document, notification, or frontend workflows; their names are pipeline
 milestones only.
 
+## Viewings calendar API
+
+Phase 6 adds authenticated, agency-isolated viewing scheduling at
+`/api/viewings`. Viewings connect same-agency clients, properties, optional
+deals, assigned agents, client activity, and deal activity. Scheduling is
+validated with conflict detection, lifecycle rules, soft deletion, and
+transactional activity logging.
+
+| Method             | Endpoint                  |
+| ------------------ | ------------------------- |
+| POST, GET          | `/api/viewings`           |
+| GET, PATCH, DELETE | `/api/viewings/:viewingId` |
+| PATCH              | `/api/viewings/:viewingId/status` |
+
+Viewing statuses are `SCHEDULED`, `CONFIRMED`, `RESCHEDULED`, `COMPLETED`,
+`CANCELLED`, and `NO_SHOW`. Completed viewings require an outcome, cancelled
+viewings require a cancellation reason, and agent access is restricted to
+assigned viewing records.
+
 ## Quality checks
 
 ```bash
