@@ -1,5 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { apiFetch } from "../lib/api";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 type User = {
   id: string;

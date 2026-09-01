@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { apiFetch } from "../lib/api";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,18 +16,26 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await apiFetch<{ token: string; user: { id: string; email: string; agencyName: string } }>(
-        "/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      login(response.token, response.user);
-      navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Invalid email or password");
+      }
+
+      const data = await response.json();
+      login(data.token, data.user);
+      navigate("/");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Invalid email or password");
+      }
     } finally {
       setLoading(false);
     }
@@ -36,13 +43,20 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
-      <form onSubmit={handleLogin} className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
-        <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">ESTATEFLOW OS</p>
+      <form
+        onSubmit={handleLogin}
+        className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl"
+      >
+        <p className="text-xs font-bold uppercase tracking-widest text-amber-500">
+          ESTATEFLOW OS
+        </p>
         <h1 className="mt-2 text-2xl font-bold text-white">Agency Login</h1>
-        <p className="mt-1 text-sm text-slate-400">Sign in to access your properties and client workspace.</p>
+        <p className="mt-1 text-sm text-slate-400">
+          Sign in to access your properties and client workspace.
+        </p>
 
         {error && (
-          <div className="mt-4 rounded-xl bg-rose-950/80 border border-rose-800 p-3 text-xs font-semibold text-rose-200">
+          <div className="mt-4 rounded-xl border border-rose-800 bg-rose-950/80 p-3 text-xs font-semibold text-rose-200">
             {error}
           </div>
         )}
@@ -75,7 +89,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full min-h-12 rounded-xl bg-amber-500 font-bold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50"
+            className="min-h-12 w-full rounded-xl bg-amber-500 font-bold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in to Workspace"}
           </button>
