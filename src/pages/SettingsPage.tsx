@@ -26,19 +26,25 @@ import type {
 } from "../features/properties/property-data";
 import { loadClients, saveClients } from "../features/clients/client-storage";
 import type { ClientStage } from "../features/clients/client-data";
-const input = "min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm";
+
+const input =
+  "min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500";
+
 export function SettingsPage() {
   const [settings, setSettings] = useState(loadSettings),
     [tab, setTab] = useState("Agency"),
     [message, setMessage] = useState(""),
     [backup, setBackup] = useState<EstateFlowBackup | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
   const save = (next: AppSettings) => {
     saveSettings(next);
     setSettings(next);
     setMessage("Settings saved.");
   };
+
   const patch = (p: Partial<AppSettings>) => save({ ...settings, ...p });
+
   function usedLabelsFor(key: string) {
     if (key === "propertyTypes")
       return loadProperties().map((property) => property.propertyType);
@@ -48,6 +54,7 @@ export function SettingsPage() {
       return loadClients().map((client) => client.stage);
     return [];
   }
+
   function replaceUsedOption(
     key: string,
     oldLabel: string,
@@ -78,6 +85,7 @@ export function SettingsPage() {
         ),
       );
   }
+
   const exportBackup = async () => {
     const completeBackup = await createCompleteBackup();
     const blob = new Blob([JSON.stringify(completeBackup, null, 2)], {
@@ -90,6 +98,7 @@ export function SettingsPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
   const readBackup = async (file?: File) => {
     if (!file) return;
     try {
@@ -106,17 +115,24 @@ export function SettingsPage() {
       setMessage("Backup file could not be read. No data was changed.");
     }
   };
+
   return (
     <DashboardShell>
       <section>
-        <p className="text-sm font-bold text-amber-700">PREFERENCES & DATA</p>
-        <h1 className="mt-2 text-3xl font-bold">Settings</h1>
-        <p className="mt-2 text-slate-600">
+        <p className="text-sm font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">
+          PREFERENCES & DATA
+        </p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
+          Settings
+        </h1>
+        <p className="mt-2 text-slate-600 dark:text-slate-400">
           Agency defaults, localization, appearance, custom lists, and safe
           local backup.
         </p>
       </section>
-      <div className="mt-6 flex gap-2 overflow-x-auto">
+
+      {/* Tabs */}
+      <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
         {[
           "Agency",
           "Localization",
@@ -128,21 +144,27 @@ export function SettingsPage() {
           <button
             key={x}
             onClick={() => setTab(x)}
-            className={`min-h-11 shrink-0 rounded-xl px-4 font-bold ${tab === x ? "bg-slate-950 text-white" : "bg-white"}`}
+            className={`min-h-11 shrink-0 rounded-xl px-4 font-bold transition-colors ${
+              tab === x
+                ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-900"
+                : "bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+            }`}
           >
             {x}
           </button>
         ))}
       </div>
+
       {message && (
         <p
           role="status"
-          className="mt-4 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800"
+          className="mt-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-sm font-semibold text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-900"
         >
           {message}
         </p>
       )}
-      <section className="mt-5 rounded-2xl border bg-white p-5 sm:p-6">
+
+      <section className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/90 p-5 sm:p-6 text-slate-900 dark:text-slate-100">
         {tab === "Agency" && (
           <Grid>
             <Field
@@ -197,6 +219,7 @@ export function SettingsPage() {
             />
           </Grid>
         )}
+
         {tab === "Localization" && (
           <Grid>
             <Select
@@ -233,6 +256,7 @@ export function SettingsPage() {
             />
           </Grid>
         )}
+
         {tab === "Defaults" && (
           <Grid>
             <Select
@@ -280,6 +304,7 @@ export function SettingsPage() {
             />
           </Grid>
         )}
+
         {tab === "Custom lists" && (
           <div className="space-y-5">
             {Object.entries(settings.customLists).map(([key, options]) => (
@@ -325,6 +350,7 @@ export function SettingsPage() {
             ))}
           </div>
         )}
+
         {tab === "Appearance" && (
           <Grid>
             <Select
@@ -339,22 +365,24 @@ export function SettingsPage() {
               options={["comfortable", "compact"]}
               set={(v) => patch({ density: v as "comfortable" | "compact" })}
             />
-            <label className="flex min-h-12 items-center gap-3 font-bold">
+            <label className="flex min-h-12 items-center gap-3 font-bold text-slate-800 dark:text-slate-200">
               <input
                 type="checkbox"
                 checked={settings.sidebarCollapsed}
                 onChange={(e) => patch({ sidebarCollapsed: e.target.checked })}
+                className="h-4 w-4 rounded accent-amber-500"
               />{" "}
               Collapse desktop sidebar
             </label>
           </Grid>
         )}
+
         {tab === "Data" && (
           <div>
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={exportBackup}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-slate-950 px-5 font-bold text-white"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-900 px-5 font-bold hover:opacity-90"
               >
                 <Download size={17} /> Export JSON backup
               </button>
@@ -367,7 +395,7 @@ export function SettingsPage() {
               />
               <button
                 onClick={() => fileRef.current?.click()}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl border px-5 font-bold"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 font-bold hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <Upload size={17} /> Import backup
               </button>
@@ -380,15 +408,16 @@ export function SettingsPage() {
                   )
                     save(structuredClone(defaultSettings));
                 }}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl border px-5 font-bold"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 font-bold hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <RotateCcw size={17} /> Restore settings
               </button>
             </div>
+
             {backup && (
-              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="font-bold">Backup preview</p>
-                <p className="mt-1 text-sm">
+              <div className="mt-5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4">
+                <p className="font-bold text-amber-900 dark:text-amber-100">Backup preview</p>
+                <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
                   {Object.keys(backup.localStorage).length} EstateFlow data
                   collections · {backup.createdAt}
                 </p>
@@ -400,7 +429,7 @@ export function SettingsPage() {
                         "Backup merged. Refresh to reload all workspaces.",
                       );
                     }}
-                    className="min-h-11 rounded-xl border bg-white px-4 font-bold"
+                    className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 font-bold"
                   >
                     Merge
                   </button>
@@ -415,14 +444,14 @@ export function SettingsPage() {
                         setMessage("Backup replaced. Refresh to reload.");
                       }
                     }}
-                    className="min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white"
+                    className="min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-700"
                   >
                     Replace
                   </button>
                 </div>
               </div>
             )}
-            <p className="mt-5 text-sm text-slate-500">
+            <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
               The JSON backup includes EstateFlow localStorage collections and
               IndexedDB document files when the browser can read them.
             </p>
@@ -432,9 +461,11 @@ export function SettingsPage() {
     </DashboardShell>
   );
 }
+
 function Grid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
 }
+
 function Field({
   label,
   value,
@@ -445,7 +476,7 @@ function Field({
   set: (v: string) => void;
 }) {
   return (
-    <label className="text-sm font-bold">
+    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
       {label}
       <input
         value={value}
@@ -455,6 +486,7 @@ function Field({
     </label>
   );
 }
+
 function NumberField({
   label,
   value,
@@ -465,7 +497,7 @@ function NumberField({
   set: (v: number) => void;
 }) {
   return (
-    <label className="text-sm font-bold">
+    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
       {label}
       <input
         type="number"
@@ -477,6 +509,7 @@ function NumberField({
     </label>
   );
 }
+
 function Select({
   label,
   value,
@@ -489,7 +522,7 @@ function Select({
   set: (v: string) => void;
 }) {
   return (
-    <label className="text-sm font-bold">
+    <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
       {label}
       <select
         value={value}
@@ -497,12 +530,15 @@ function Select({
         className={`mt-2 ${input}`}
       >
         {options.map((x) => (
-          <option key={x}>{x}</option>
+          <option key={x} value={x} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+            {x}
+          </option>
         ))}
       </select>
     </label>
   );
 }
+
 function CustomList({
   title,
   options,
@@ -532,9 +568,10 @@ function CustomList({
     ]);
     setValue("");
   };
+
   return (
     <div>
-      <h2 className="font-bold capitalize">
+      <h2 className="font-bold capitalize text-slate-800 dark:text-slate-200">
         {title.replace(/([A-Z])/g, " $1")}
       </h2>
       <form onSubmit={add} className="mt-2 flex gap-2">
@@ -544,13 +581,15 @@ function CustomList({
           className={input}
           placeholder="Add option"
         />
-        <button className="rounded-xl bg-amber-500 px-4 font-bold">Add</button>
+        <button className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 font-bold text-slate-950">
+          Add
+        </button>
       </form>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((o, i) => (
           <span
             key={o.id}
-            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-sm"
+            className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-700/80 px-3 py-2 text-sm text-slate-800 dark:text-slate-200"
           >
             <button
               onClick={() => {
@@ -587,7 +626,7 @@ function CustomList({
             >
               {o.archived ? "Restore" : "Archive"}
             </button>
-            <button onClick={() => onDelete(o.id)} className="text-rose-600">
+            <button onClick={() => onDelete(o.id)} className="text-rose-600 dark:text-rose-400">
               ×
             </button>
           </span>
