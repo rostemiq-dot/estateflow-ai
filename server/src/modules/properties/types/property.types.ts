@@ -12,9 +12,12 @@ import type {
 } from "../validators/property.validators.js";
 
 export type PropertyWriteData = Omit<
-  Prisma.PropertyUncheckedCreateInput,
+  CreatePropertyInput,
   "price" | "latitude" | "longitude" | "areaSqm"
 > & {
+  agencyId: string;
+  createdById: string;
+  assignedAgentId: string | null;
   price: string;
   latitude?: string | null;
   longitude?: string | null;
