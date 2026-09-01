@@ -40,11 +40,11 @@ export function SettingsPage() {
   const handleSaveAll = (e?: FormEvent) => {
     if (e) e.preventDefault();
     saveSettings(formData);
-    
+
     if (formData.agencyName) {
       document.title = `${formData.agencyName} - Real Estate OS`;
     }
-    
+
     window.dispatchEvent(new Event("estateflow_settings_updated"));
 
     setMessage("Settings saved successfully!");
@@ -140,6 +140,7 @@ export function SettingsPage() {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => handleSaveAll()}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold shadow-md transition-all shrink-0"
           >
@@ -159,6 +160,7 @@ export function SettingsPage() {
           ].map((x) => (
             <button
               key={x}
+              type="button"
               onClick={() => setTab(x)}
               className={`min-h-11 shrink-0 rounded-xl px-4 font-bold transition-colors ${
                 tab === x
@@ -180,7 +182,7 @@ export function SettingsPage() {
           </p>
         )}
 
-        <form onSubmit={handleSaveAll} className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/90 p-5 sm:p-6 shadow-sm">
+        <div className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/90 p-5 sm:p-6 shadow-sm">
           {tab === "Agency" && (
             <div className="space-y-6">
               <Grid>
@@ -238,7 +240,8 @@ export function SettingsPage() {
 
               <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => handleSaveAll()}
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
                 >
                   <Save size={18} /> Save Agency Details
@@ -339,11 +342,14 @@ export function SettingsPage() {
                   key={key}
                   title={key}
                   options={options}
-                  onChange={(next) =>
-                    patchForm({
+                  onChange={(next) => {
+                    const updated = {
+                      ...formData,
                       customLists: { ...formData.customLists, [key]: next },
-                    })
-                  }
+                    };
+                    setFormData(updated);
+                    saveSettings(updated);
+                  }}
                   onDelete={(id) => {
                     const target = options.find((option) => option.id === id);
                     if (!target) return;
@@ -365,13 +371,17 @@ export function SettingsPage() {
                         replacement.trim(),
                       );
                     }
-                    if (result.ok)
-                      patchForm({
+                    if (result.ok) {
+                      const updated = {
+                        ...formData,
                         customLists: {
                           ...formData.customLists,
                           [key]: result.options,
                         },
-                      });
+                      };
+                      setFormData(updated);
+                      saveSettings(updated);
+                    }
                   }}
                 />
               ))}
@@ -405,7 +415,8 @@ export function SettingsPage() {
               </Grid>
               <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => handleSaveAll()}
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
                 >
                   <Save size={18} /> Apply Theme Changes
@@ -497,7 +508,7 @@ export function SettingsPage() {
               )}
             </div>
           )}
-        </form>
+        </div>
       </div>
     </DashboardShell>
   );
@@ -592,17 +603,18 @@ function CustomList({
   onDelete: (id: string) => void;
 }) {
   const [value, setValue] = useState("");
-  const add = (e: FormEvent) => {
-    e.preventDefault();
+
+  const handleAdd = () => {
     if (
       !value.trim() ||
       options.some((x) => x.label.toLowerCase() === value.trim().toLowerCase())
     )
       return;
+
     onChange([
       ...options,
       {
-        id: `OPT-${new Date().toISOString().replace(/\D/g, "")}`,
+        id: `OPT-${Date.now()}`,
         label: value.trim(),
         archived: false,
       },
@@ -615,17 +627,28 @@ function CustomList({
       <h2 className="font-bold capitalize text-slate-800 dark:text-slate-200">
         {title.replace(/([A-Z])/g, " $1")}
       </h2>
-      <form onSubmit={add} className="mt-2 flex gap-2">
+      <div className="mt-2 flex gap-2">
         <input
+          type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAdd();
+            }
+          }}
           className={input}
           placeholder="Add option"
         />
-        <button type="submit" className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 font-bold text-slate-950">
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 font-bold text-slate-950 shrink-0"
+        >
           Add
         </button>
-      </form>
+      </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {options.map((o, i) => (
           <span
@@ -670,7 +693,11 @@ function CustomList({
             >
               {o.archived ? "Restore" : "Archive"}
             </button>
-            <button type="button" onClick={() => onDelete(o.id)} className="text-rose-600 dark:text-rose-400">
+            <button
+              type="button"
+              onClick={() => onDelete(o.id)}
+              className="text-rose-600 dark:text-rose-400"
+            >
               ×
             </button>
           </span>
