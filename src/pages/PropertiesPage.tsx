@@ -1,5 +1,5 @@
 import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import { DeletePropertyModal } from "../components/dashboard/properties/DeletePropertyModal";
@@ -22,6 +22,7 @@ import {
   type PropertyType,
 } from "../features/properties/property-data";
 import {
+  fetchPropertiesAsync,
   loadProperties,
   saveProperties,
 } from "../features/properties/property-storage";
@@ -65,6 +66,17 @@ export function PropertiesPage() {
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [storageError, setStorageError] = useState("");
+
+  // Sync logged-in account properties from backend API on page load
+  useEffect(() => {
+    async function syncRemoteProperties() {
+      const remoteData = await fetchPropertiesAsync();
+      if (remoteData && remoteData.length > 0) {
+        setPropertyList(remoteData);
+      }
+    }
+    void syncRemoteProperties();
+  }, []);
 
   const isCreateOpen = searchParams.get("add") === "true";
   const selectedProperty =
