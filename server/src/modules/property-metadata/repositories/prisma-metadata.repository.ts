@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient, type PropertyMedia } from "@prisma/client";
 import { prisma } from "../../../lib/prisma.js";
 import type {
   CatalogCreateInput,
@@ -6,23 +6,147 @@ import type {
   CatalogRecord,
   CatalogRepository,
   CatalogUpdateInput,
+  MediaRepository,
 } from "./metadata.repository.js";
+import { DuplicateCatalogSlugError } from "./metadata.repository.js";
+import type {
+  CreateMediaInput,
+  UpdateMediaInput,
+} from "../validators/metadata.validators.js";
 
-const catalogError = (error: unknown): never => {
-  if (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  ) {
-    throw new Error("A catalog item with this name or slug already exists");
+type MediaDatabase = Pick<
+  PrismaClient,
+  "property" | "propertyMedia" | "$transaction"
+>;
+
+export class PrismaMediaRepository implements MediaRepository {
+  constructor(private readonly database: MediaDatabase = prisma) {}
+
+  async propertyExists(agencyId: string, propertyId: string) {
+    return (
+      (await this.database.property.count({
+        where: { id: propertyId, agencyId, deletedAt: null },
+      })) === 1
+    );
   }
-  throw error;
-};
+
+  async propertyCanModify(
+    agencyId: string,
+    propertyId: string,
+    userId: string,
+    privileged: boolean,
+  ) {
+    return (
+      (await this.database.property.count({
+        where: {
+          id: propertyId,
+          agencyId,
+          deletedAt: null,
+          ...(privileged
+            ? {}
+            : { OR: [{ createdById: userId }, { assignedAgentId: userId }] }),
+        },
+      })) === 1
+    );
+  }
+
+  list(agencyId: string, propertyId: string): Promise<PropertyMedia[]> {
+    return this.database.propertyMedia.findMany({
+      where: {
+        propertyId,
+        property: { agencyId, deletedAt: null },
+        deletedAt: null,
+      },
+      orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+    });
+  }
+
+  async create(
+    agencyId: string,
+    propertyId: string,
+    uploadedById: string,
+    input: CreateMediaInput,
+  ): Promise<PropertyMedia | null> {
+    if (!(await this.propertyExists(agencyId, propertyId))) return null;
+    return this.createInTransaction(propertyId, uploadedById, input);
+  }
+
+  private async createInTransaction(
+    propertyId: string,
+    uploadedById: string,
+    input: CreateMediaInput,
+  ) {
+    return (this.database as PrismaClient).$transaction(async (tx) => {
+      if (input.isCover) {
+        await tx.propertyMedia.updateMany({
+          where: { propertyId, deletedAt: null, isCover: true },
+          data: { isCover: false },
+        });
+      }
+      return tx.propertyMedia.create({
+        data: toMediaCreate(propertyId, uploadedById, input),
+      });
+    });
+  }
+
+  async update(
+    agencyId: string,
+    propertyId: string,
+    mediaId: string,
+    input: UpdateMediaInput,
+  ): Promise<PropertyMedia | null> {
+    const exists = await this.database.propertyMedia.findFirst({
+      where: {
+        id: mediaId,
+        propertyId,
+        deletedAt: null,
+        property: { agencyId, deletedAt: null },
+      },
+    });
+    if (!exists) return null;
+    return this.database.$transaction(async (tx) => {
+      if (input.isCover) {
+        await tx.propertyMedia.updateMany({
+          where: {
+            propertyId,
+            deletedAt: null,
+            isCover: true,
+            id: { not: mediaId },
+          },
+          data: { isCover: false },
+        });
+      }
+      return tx.propertyMedia.update({
+        where: { id: mediaId },
+        data: toMediaUpdate(input),
+      });
+    });
+  }
+
+  async softDelete(
+    agencyId: string,
+    propertyId: string,
+    mediaId: string,
+    deletedAt: Date,
+  ) {
+    const result = await this.database.propertyMedia.updateMany({
+      where: {
+        id: mediaId,
+        propertyId,
+        deletedAt: null,
+        property: { agencyId, deletedAt: null },
+      },
+      data: { deletedAt, isCover: false },
+    });
+    return result.count === 1;
+  }
+}
 
 type CatalogDatabase = Pick<PrismaClient, "amenity" | "propertyTag">;
 
-export class PrismaCatalogRepository<T extends CatalogRecord>
-  implements CatalogRepository<T>
-{
+export class PrismaCatalogRepository<
+  T extends CatalogRecord,
+> implements CatalogRepository<T> {
   constructor(
     private readonly kind: CatalogKind,
     private readonly database: CatalogDatabase = prisma,
@@ -62,7 +186,7 @@ export class PrismaCatalogRepository<T extends CatalogRecord>
             })
       ) as T;
     } catch (error) {
-      return catalogError(error);
+      return throwCatalogError(error);
     }
   }
 
@@ -85,7 +209,7 @@ export class PrismaCatalogRepository<T extends CatalogRecord>
             });
       return result.count === 1 ? this.findById(agencyId, id) : null;
     } catch (error) {
-      return catalogError(error);
+      return throwCatalogError(error);
     }
   }
 
@@ -101,3 +225,33 @@ export class PrismaCatalogRepository<T extends CatalogRecord>
     return result.count === 1;
   }
 }
+
+const toMediaCreate = (
+  propertyId: string,
+  uploadedById: string,
+  input: CreateMediaInput,
+): Prisma.PropertyMediaUncheckedCreateInput => ({
+  ...input,
+  fileSize: BigInt(input.fileSize),
+  metadata: input.metadata ?? undefined,
+  propertyId,
+  uploadedById,
+});
+
+const toMediaUpdate = (
+  input: UpdateMediaInput,
+): Prisma.PropertyMediaUpdateInput => ({
+  ...input,
+  ...(input.fileSize !== undefined ? { fileSize: BigInt(input.fileSize) } : {}),
+  metadata: input.metadata === null ? Prisma.JsonNull : input.metadata,
+});
+
+const throwCatalogError = (error: unknown): never => {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    throw new DuplicateCatalogSlugError();
+  }
+  throw error;
+};
