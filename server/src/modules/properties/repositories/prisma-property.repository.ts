@@ -33,6 +33,7 @@ export class PrismaPropertyRepository implements PropertyRepository {
       [options.sortBy]: options.sortOrder,
     } satisfies Prisma.PropertyOrderByWithRelationInput;
     const skip = (options.page - 1) * options.pageSize;
+
     const [records, total] = await Promise.all([
       this.database.property.findMany({
         where,
@@ -42,16 +43,13 @@ export class PrismaPropertyRepository implements PropertyRepository {
       }),
       this.database.property.count({ where }),
     ]);
+
     return { records, total };
   }
 
-  async findById(
-    agencyId: string,
-    propertyId: string,
-    permittedAgentId?: string,
-  ): Promise<Property | null> {
+  findById(agencyId: string, propertyId: string): Promise<Property | null> {
     return this.database.property.findFirst({
-      where: propertyAccessWhere(agencyId, propertyId, permittedAgentId),
+      where: { id: propertyId, agencyId, deletedAt: null },
     });
   }
 
@@ -59,29 +57,25 @@ export class PrismaPropertyRepository implements PropertyRepository {
     agencyId: string,
     propertyId: string,
     data: PropertyUpdateData,
-    permittedAgentId?: string,
   ): Promise<Property | null> {
-    const result = await this.database.property.updateMany({
-      where: propertyAccessWhere(agencyId, propertyId, permittedAgentId),
-      data: toUpdateData(data),
-    });
-    if (result.count === 0) return null;
-    return this.database.property.findFirst({
-      where: { id: propertyId, agencyId },
-    });
+    try {
+      const update = await this.database.property.updateMany({
+        where: { id: propertyId, agencyId, deletedAt: null },
+        data: toUpdateData(data),
+      });
+      if (update.count !== 1) return null;
+      return this.findById(agencyId, propertyId);
+    } catch (error) {
+      return throwMappedWriteError(error);
+    }
   }
 
-  async softDelete(
-    agencyId: string,
-    propertyId: string,
-    deletedAt: Date,
-    permittedAgentId?: string,
-  ): Promise<boolean> {
+  async softDelete(agencyId: string, propertyId: string, deletedAt: Date): Promise<boolean> {
     const result = await this.database.property.updateMany({
-      where: propertyAccessWhere(agencyId, propertyId, permittedAgentId),
+      where: { id: propertyId, agencyId, deletedAt: null },
       data: { deletedAt },
     });
-    return result.count > 0;
+    return result.count === 1;
   }
 
   async isActiveUserInAgency(userId: string, agencyId: string): Promise<boolean> {
@@ -89,9 +83,67 @@ export class PrismaPropertyRepository implements PropertyRepository {
       where: { id: userId, agencyId, isActive: true },
       select: { id: true },
     });
-    return Boolean(user);
+    return user !== null;
   }
 }
+
+export const buildPropertyWhere = (
+  options: PropertyListOptions,
+): Prisma.PropertyWhereInput => ({
+  agencyId: options.agencyId,
+  deletedAt: null,
+  ...(options.search
+    ? {
+        OR: ["title", "referenceCode", "city", "district", "neighborhood", "address"].map(
+          (field) => ({
+            [field]: {
+              contains: options.search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          }),
+        ),
+      }
+    : {}),
+  ...(options.status ? { status: options.status } : {}),
+  ...(options.propertyType ? { propertyType: options.propertyType } : {}),
+  ...(options.purpose ? { purpose: options.purpose } : {}),
+  ...(options.currency ? { currency: options.currency } : {}),
+  ...(options.city
+    ? { city: { equals: options.city, mode: Prisma.QueryMode.insensitive } }
+    : {}),
+  ...(options.district
+    ? { district: { equals: options.district, mode: Prisma.QueryMode.insensitive } }
+    : {}),
+  ...(options.assignedAgentId ? { assignedAgentId: options.assignedAgentId } : {}),
+  ...(options.minPrice !== undefined || options.maxPrice !== undefined
+    ? {
+        price: {
+          ...(options.minPrice !== undefined ? { gte: new Prisma.Decimal(options.minPrice) } : {}),
+          ...(options.maxPrice !== undefined ? { lte: new Prisma.Decimal(options.maxPrice) } : {}),
+        },
+      }
+    : {}),
+  ...(options.minBedrooms !== undefined || options.maxBedrooms !== undefined
+    ? {
+        bedrooms: {
+          ...(options.minBedrooms !== undefined ? { gte: options.minBedrooms } : {}),
+          ...(options.maxBedrooms !== undefined ? { lte: options.maxBedrooms } : {}),
+        },
+      }
+    : {}),
+  ...(options.minAreaSqm !== undefined || options.maxAreaSqm !== undefined
+    ? {
+        areaSqm: {
+          ...(options.minAreaSqm !== undefined
+            ? { gte: new Prisma.Decimal(options.minAreaSqm) }
+            : {}),
+          ...(options.maxAreaSqm !== undefined
+            ? { lte: new Prisma.Decimal(options.maxAreaSqm) }
+            : {}),
+        },
+      }
+    : {}),
+});
 
 const toCreateData = (
   data: PropertyWriteData,
@@ -125,76 +177,9 @@ const toUpdateData = (
   };
 };
 
-const propertyAccessWhere = (
-  agencyId: string,
-  propertyId: string,
-  permittedAgentId?: string,
-): Prisma.PropertyWhereInput => ({
-  id: propertyId,
-  agencyId,
-  deletedAt: null,
-  ...(permittedAgentId ? { assignedAgentId: permittedAgentId } : {}),
-});
-
-const buildPropertyWhere = (
-  options: PropertyListOptions,
-): Prisma.PropertyWhereInput => ({
-  agencyId: options.agencyId,
-  deletedAt: null,
-  ...(options.search
-    ? {
-        OR: [
-          { title: { contains: options.search, mode: "insensitive" } },
-          { referenceCode: { contains: options.search, mode: "insensitive" } },
-          { city: { contains: options.search, mode: "insensitive" } },
-          { district: { contains: options.search, mode: "insensitive" } },
-          { neighborhood: { contains: options.search, mode: "insensitive" } },
-        ],
-      }
-    : {}),
-  ...(options.status ? { status: options.status } : {}),
-  ...(options.purpose ? { purpose: options.purpose } : {}),
-  ...(options.propertyType ? { propertyType: options.propertyType } : {}),
-  ...(options.city ? { city: { equals: options.city, mode: "insensitive" } } : {}),
-  ...(options.assignedAgentId ? { assignedAgentId: options.assignedAgentId } : {}),
-  ...(options.currency ? { currency: options.currency } : {}),
-  ...(options.minPrice !== undefined || options.maxPrice !== undefined
-    ? {
-        price: {
-          ...(options.minPrice !== undefined
-            ? { gte: new Prisma.Decimal(options.minPrice) }
-            : {}),
-          ...(options.maxPrice !== undefined
-            ? { lte: new Prisma.Decimal(options.maxPrice) }
-            : {}),
-        },
-      }
-    : {}),
-  ...(options.minBedrooms !== undefined || options.maxBedrooms !== undefined
-    ? {
-        bedrooms: {
-          ...(options.minBedrooms !== undefined ? { gte: options.minBedrooms } : {}),
-          ...(options.maxBedrooms !== undefined ? { lte: options.maxBedrooms } : {}),
-        },
-      }
-    : {}),
-  ...(options.minAreaSqm !== undefined || options.maxAreaSqm !== undefined
-    ? {
-        areaSqm: {
-          ...(options.minAreaSqm !== undefined
-            ? { gte: new Prisma.Decimal(options.minAreaSqm) }
-            : {}),
-          ...(options.maxAreaSqm !== undefined
-            ? { lte: new Prisma.Decimal(options.maxAreaSqm) }
-            : {}),
-        },
-      }
-    : {}),
-});
-
-function throwMappedWriteError(error: unknown): never {
+const throwMappedWriteError = (error: unknown): never => {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
     throw new DuplicateReferenceCodeError();
   }
   throw error;
-}
+};
