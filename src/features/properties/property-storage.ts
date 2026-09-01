@@ -159,7 +159,7 @@ export async function fetchPropertiesAsync(): Promise<Property[]> {
     const response = await apiFetch<{ data: unknown[] }>("/properties");
     const rawList = Array.isArray(response) ? response : response?.data;
 
-    if (!Array.isArray(rawList)) {
+    if (!Array.isArray(rawList) || rawList.length === 0) {
       return loadProperties();
     }
 
@@ -180,9 +180,9 @@ export async function fetchPropertiesAsync(): Promise<Property[]> {
   }
 }
 
-export function saveProperties(
+export async function savePropertiesAsync(
   propertyList: readonly Property[],
-): PropertySaveResult {
+): Promise<PropertySaveResult> {
   if (typeof window === "undefined") {
     return {
       ok: false,
@@ -191,15 +191,25 @@ export function saveProperties(
   }
 
   try {
+    // 1. Save to Local Storage immediately
     window.localStorage.setItem(
       PROPERTY_STORAGE_KEY,
       JSON.stringify(propertyList),
     );
 
-    apiFetch("/properties/batch", {
+    // 2. Persist to Express API / Database
+    await apiFetch("/properties/batch", {
       method: "POST",
       body: JSON.stringify({ properties: propertyList }),
-    }).catch(() => null);
+    }).catch(async () => {
+      // Fallback: If batch fails, try saving individual items
+      for (const prop of propertyList) {
+        await apiFetch("/properties", {
+          method: "POST",
+          body: JSON.stringify(prop),
+        }).catch(() => null);
+      }
+    });
 
     return { ok: true };
   } catch (error) {
@@ -215,6 +225,13 @@ export function saveProperties(
         : "This property could not be saved. Please try again.",
     };
   }
+}
+
+export function saveProperties(
+  propertyList: readonly Property[],
+): PropertySaveResult {
+  void savePropertiesAsync(propertyList);
+  return { ok: true };
 }
 
 export function clearSavedProperties(): void {
