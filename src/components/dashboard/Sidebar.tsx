@@ -1,5 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { dashboardNav } from "../../features/dashboard/dashboard-nav";
 import {
@@ -16,12 +16,33 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(
     () => loadSettings().sidebarCollapsed,
   );
+  const [agencyName, setAgencyName] = useState(() => {
+    const s = loadSettings();
+    return s.agencyName?.trim() || "Real Estate OS";
+  });
+
+  useEffect(() => {
+    const updateAgencyName = () => {
+      const s = loadSettings();
+      setAgencyName(s.agencyName?.trim() || "Real Estate OS");
+    };
+
+    window.addEventListener("estateflow_settings_updated", updateAgencyName);
+    window.addEventListener("storage", updateAgencyName);
+
+    return () => {
+      window.removeEventListener("estateflow_settings_updated", updateAgencyName);
+      window.removeEventListener("storage", updateAgencyName);
+    };
+  }, []);
+
   function toggleCollapsed() {
     const next = !collapsed;
     setCollapsed(next);
     const settings = loadSettings();
     saveSettings({ ...settings, sidebarCollapsed: next });
   }
+
   return (
     <aside
       aria-label="Main navigation"
@@ -34,7 +55,9 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">
             EstateFlow
           </p>
-          <h1 className="mt-2 text-2xl font-bold text-white">Real Estate OS</h1>
+          <h1 className="mt-2 text-2xl font-bold text-white truncate max-w-[200px]" title={agencyName}>
+            {agencyName}
+          </h1>
         </div>
 
         <button
@@ -95,7 +118,9 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
       <div
         className={`mt-5 shrink-0 rounded-2xl border border-slate-800 bg-slate-900 p-4 ${collapsed ? "lg:hidden" : ""}`}
       >
-        <p className="text-sm font-semibold text-white">EstateFlow AI</p>
+        <p className="text-sm font-semibold text-white truncate">
+          {agencyName} AI
+        </p>
         <p className="mt-1 text-xs leading-5 text-slate-400">
           Your smart workspace for properties, clients, and deals.
         </p>
