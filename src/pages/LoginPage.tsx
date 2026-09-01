@@ -31,7 +31,7 @@ export function LoginPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || "Authentication failed");
+        throw new Error(data.error?.message || data.message || "Authentication failed");
       }
 
       const data = await response.json();
