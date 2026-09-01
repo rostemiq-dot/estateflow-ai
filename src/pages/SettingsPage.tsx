@@ -1,4 +1,4 @@
-import { Download, RotateCcw, Upload } from "lucide-react";
+import { Download, RotateCcw, Upload, Save } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import {
@@ -28,22 +28,32 @@ import { loadClients, saveClients } from "../features/clients/client-storage";
 import type { ClientStage } from "../features/clients/client-data";
 
 const input =
-  "min-h-12 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500";
+  "min-h-12 w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500";
 
 export function SettingsPage() {
-  const [settings, setSettings] = useState(loadSettings),
-    [tab, setTab] = useState("Agency"),
-    [message, setMessage] = useState(""),
-    [backup, setBackup] = useState<EstateFlowBackup | null>(null);
+  const [formData, setFormData] = useState<AppSettings>(loadSettings);
+  const [tab, setTab] = useState("Agency");
+  const [message, setMessage] = useState("");
+  const [backup, setBackup] = useState<EstateFlowBackup | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const save = (next: AppSettings) => {
-    saveSettings(next);
-    setSettings(next);
-    setMessage("Settings saved.");
+  const handleSaveAll = (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    saveSettings(formData);
+    
+    if (formData.agencyName) {
+      document.title = `${formData.agencyName} - Real Estate OS`;
+    }
+    
+    window.dispatchEvent(new Event("estateflow_settings_updated"));
+
+    setMessage("Settings saved successfully!");
+    setTimeout(() => setMessage(""), 3000);
   };
 
-  const patch = (p: Partial<AppSettings>) => save({ ...settings, ...p });
+  const patchForm = (p: Partial<AppSettings>) => {
+    setFormData((prev) => ({ ...prev, ...p }));
+  };
 
   function usedLabelsFor(key: string) {
     if (key === "propertyTypes")
@@ -118,346 +128,377 @@ export function SettingsPage() {
 
   return (
     <DashboardShell>
-      <section>
-        <p className="text-sm font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">
-          PREFERENCES & DATA
-        </p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Settings
-        </h1>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">
-          Agency defaults, localization, appearance, custom lists, and safe
-          local backup.
-        </p>
-      </section>
-
-      {/* Tabs */}
-      <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
-        {[
-          "Agency",
-          "Localization",
-          "Defaults",
-          "Custom lists",
-          "Appearance",
-          "Data",
-        ].map((x) => (
-          <button
-            key={x}
-            onClick={() => setTab(x)}
-            className={`min-h-11 shrink-0 rounded-xl px-4 font-bold transition-colors ${
-              tab === x
-                ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-900"
-                : "bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-            }`}
-          >
-            {x}
-          </button>
-        ))}
-      </div>
-
-      {message && (
-        <p
-          role="status"
-          className="mt-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 p-4 text-sm font-semibold text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-900"
-        >
-          {message}
-        </p>
-      )}
-
-      <section className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/90 p-5 sm:p-6 text-slate-900 dark:text-slate-100">
-        {tab === "Agency" && (
-          <Grid>
-            <Field
-              label="Agency name"
-              value={settings.agencyName}
-              set={(v) => patch({ agencyName: v })}
-            />
-            <Field
-              label="Logo URL or data URL"
-              value={settings.logo}
-              set={(v) => patch({ logo: v })}
-            />
-            <Field
-              label="Phone"
-              value={settings.phone}
-              set={(v) => patch({ phone: v })}
-            />
-            <Field
-              label="WhatsApp"
-              value={settings.whatsapp}
-              set={(v) => patch({ whatsapp: v })}
-            />
-            <Field
-              label="Email"
-              value={settings.email}
-              set={(v) => patch({ email: v })}
-            />
-            <Field
-              label="Address"
-              value={settings.address}
-              set={(v) => patch({ address: v })}
-            />
-            <Field
-              label="Website"
-              value={settings.website}
-              set={(v) => patch({ website: v })}
-            />
-            <Field
-              label="Registration / tax"
-              value={settings.registrationInfo}
-              set={(v) => patch({ registrationInfo: v })}
-            />
-            <Field
-              label="Contract footer"
-              value={settings.contractFooter}
-              set={(v) => patch({ contractFooter: v })}
-            />
-            <Field
-              label="Default responsible agent"
-              value={settings.defaultResponsibleAgent}
-              set={(v) => patch({ defaultResponsibleAgent: v })}
-            />
-          </Grid>
-        )}
-
-        {tab === "Localization" && (
-          <Grid>
-            <Select
-              label="Default currency"
-              value={settings.defaultCurrency}
-              options={["USD", "IQD"]}
-              set={(v) => patch({ defaultCurrency: v as "USD" | "IQD" })}
-            />
-            <Field
-              label="Date format"
-              value={settings.dateFormat}
-              set={(v) => patch({ dateFormat: v })}
-            />
-            <Select
-              label="Time format"
-              value={settings.timeFormat}
-              options={["12h", "24h"]}
-              set={(v) => patch({ timeFormat: v as "12h" | "24h" })}
-            />
-            <Field
-              label="Number format"
-              value={settings.numberFormat}
-              set={(v) => patch({ numberFormat: v })}
-            />
-            <Field
-              label="Language preparation"
-              value={settings.language}
-              set={(v) => patch({ language: v })}
-            />
-            <Field
-              label="Time zone"
-              value={settings.timeZone}
-              set={(v) => patch({ timeZone: v })}
-            />
-          </Grid>
-        )}
-
-        {tab === "Defaults" && (
-          <Grid>
-            <Select
-              label="Commission type"
-              value={settings.commissionType}
-              options={["Percentage", "Fixed"]}
-              set={(v) =>
-                patch({ commissionType: v as "Percentage" | "Fixed" })
-              }
-            />
-            <NumberField
-              label="Commission value"
-              value={settings.commissionValue}
-              set={(v) => patch({ commissionValue: v })}
-            />
-            <NumberField
-              label="Agent share %"
-              value={settings.agentShare}
-              set={(v) => patch({ agentShare: v })}
-            />
-            <NumberField
-              label="Offer expiration days"
-              value={settings.offerExpirationDays}
-              set={(v) => patch({ offerExpirationDays: v })}
-            />
-            <NumberField
-              label="Viewing reminder hours"
-              value={settings.viewingReminderHours}
-              set={(v) => patch({ viewingReminderHours: v })}
-            />
-            <NumberField
-              label="Payment reminder days"
-              value={settings.paymentReminderDays}
-              set={(v) => patch({ paymentReminderDays: v })}
-            />
-            <Field
-              label="Contract prefix"
-              value={settings.contractPrefix}
-              set={(v) => patch({ contractPrefix: v })}
-            />
-            <Field
-              label="Property prefix"
-              value={settings.propertyPrefix}
-              set={(v) => patch({ propertyPrefix: v })}
-            />
-          </Grid>
-        )}
-
-        {tab === "Custom lists" && (
-          <div className="space-y-5">
-            {Object.entries(settings.customLists).map(([key, options]) => (
-              <CustomList
-                key={key}
-                title={key}
-                options={options}
-                onChange={(next) =>
-                  patch({
-                    customLists: { ...settings.customLists, [key]: next },
-                  })
-                }
-                onDelete={(id) => {
-                  const target = options.find((option) => option.id === id);
-                  if (!target) return;
-                  const used = usedLabelsFor(key);
-                  let result = deleteCustomOption(options, id, used);
-                  if (!result.ok) {
-                    const replacement = window.prompt(
-                      result.message,
-                      options.find(
-                        (option) => option.id !== id && !option.archived,
-                      )?.label ?? "",
-                    );
-                    if (!replacement?.trim()) return;
-                    replaceUsedOption(key, target.label, replacement.trim());
-                    result = deleteCustomOption(
-                      options,
-                      id,
-                      used,
-                      replacement.trim(),
-                    );
-                  }
-                  if (result.ok)
-                    patch({
-                      customLists: {
-                        ...settings.customLists,
-                        [key]: result.options,
-                      },
-                    });
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {tab === "Appearance" && (
-          <Grid>
-            <Select
-              label="Theme"
-              value={settings.theme}
-              options={["light", "dark"]}
-              set={(v) => patch({ theme: v as "light" | "dark" })}
-            />
-            <Select
-              label="Density"
-              value={settings.density}
-              options={["comfortable", "compact"]}
-              set={(v) => patch({ density: v as "comfortable" | "compact" })}
-            />
-            <label className="flex min-h-12 items-center gap-3 font-bold text-slate-800 dark:text-slate-200">
-              <input
-                type="checkbox"
-                checked={settings.sidebarCollapsed}
-                onChange={(e) => patch({ sidebarCollapsed: e.target.checked })}
-                className="h-4 w-4 rounded accent-amber-500"
-              />{" "}
-              Collapse desktop sidebar
-            </label>
-          </Grid>
-        )}
-
-        {tab === "Data" && (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-2 sm:p-4 rounded-2xl transition-colors">
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={exportBackup}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-900 px-5 font-bold hover:opacity-90"
-              >
-                <Download size={17} /> Export JSON backup
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".json"
-                className="hidden"
-                onChange={(e) => readBackup(e.target.files?.[0])}
-              />
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 font-bold hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <Upload size={17} /> Import backup
-              </button>
-              <button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Restore default settings? Saved business records will not be erased.",
-                    )
-                  )
-                    save(structuredClone(defaultSettings));
-                }}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 font-bold hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                <RotateCcw size={17} /> Restore settings
-              </button>
-            </div>
-
-            {backup && (
-              <div className="mt-5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4">
-                <p className="font-bold text-amber-900 dark:text-amber-100">Backup preview</p>
-                <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
-                  {Object.keys(backup.localStorage).length} EstateFlow data
-                  collections · {backup.createdAt}
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <button
-                    onClick={() => {
-                      void applyCompleteBackup(backup, "merge");
-                      setMessage(
-                        "Backup merged. Refresh to reload all workspaces.",
-                      );
-                    }}
-                    className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 font-bold"
-                  >
-                    Merge
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Replace all current EstateFlow local data with this backup?",
-                        )
-                      ) {
-                        void applyCompleteBackup(backup, "replace");
-                        setMessage("Backup replaced. Refresh to reload.");
-                      }
-                    }}
-                    className="min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-700"
-                  >
-                    Replace
-                  </button>
-                </div>
-              </div>
-            )}
-            <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
-              The JSON backup includes EstateFlow localStorage collections and
-              IndexedDB document files when the browser can read them.
+            <p className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">
+              PREFERENCES & DATA
+            </p>
+            <h1 className="mt-1 text-3xl font-bold">Settings</h1>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              Agency defaults, localization, appearance, custom lists, and safe local backup.
             </p>
           </div>
+          <button
+            onClick={() => handleSaveAll()}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold shadow-md transition-all shrink-0"
+          >
+            <Save size={18} /> Save Changes
+          </button>
+        </section>
+
+        {/* Tabs */}
+        <div className="mt-6 flex gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800">
+          {[
+            "Agency",
+            "Localization",
+            "Defaults",
+            "Custom lists",
+            "Appearance",
+            "Data",
+          ].map((x) => (
+            <button
+              key={x}
+              onClick={() => setTab(x)}
+              className={`min-h-11 shrink-0 rounded-xl px-4 font-bold transition-colors ${
+                tab === x
+                  ? "bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+              }`}
+            >
+              {x}
+            </button>
+          ))}
+        </div>
+
+        {message && (
+          <p
+            role="status"
+            className="mt-4 rounded-xl bg-amber-100 dark:bg-amber-950/80 p-4 text-sm font-semibold text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800"
+          >
+            {message}
+          </p>
         )}
-      </section>
+
+        <form onSubmit={handleSaveAll} className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/90 p-5 sm:p-6 shadow-sm">
+          {tab === "Agency" && (
+            <div className="space-y-6">
+              <Grid>
+                <Field
+                  label="Agency name"
+                  value={formData.agencyName}
+                  set={(v) => patchForm({ agencyName: v })}
+                />
+                <Field
+                  label="Logo URL or data URL"
+                  value={formData.logo}
+                  set={(v) => patchForm({ logo: v })}
+                />
+                <Field
+                  label="Phone"
+                  value={formData.phone}
+                  set={(v) => patchForm({ phone: v })}
+                />
+                <Field
+                  label="WhatsApp"
+                  value={formData.whatsapp}
+                  set={(v) => patchForm({ whatsapp: v })}
+                />
+                <Field
+                  label="Email"
+                  value={formData.email}
+                  set={(v) => patchForm({ email: v })}
+                />
+                <Field
+                  label="Address"
+                  value={formData.address}
+                  set={(v) => patchForm({ address: v })}
+                />
+                <Field
+                  label="Website"
+                  value={formData.website}
+                  set={(v) => patchForm({ website: v })}
+                />
+                <Field
+                  label="Registration / tax"
+                  value={formData.registrationInfo}
+                  set={(v) => patchForm({ registrationInfo: v })}
+                />
+                <Field
+                  label="Contract footer"
+                  value={formData.contractFooter}
+                  set={(v) => patchForm({ contractFooter: v })}
+                />
+                <Field
+                  label="Default responsible agent"
+                  value={formData.defaultResponsibleAgent}
+                  set={(v) => patchForm({ defaultResponsibleAgent: v })}
+                />
+              </Grid>
+
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                >
+                  <Save size={18} /> Save Agency Details
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab === "Localization" && (
+            <Grid>
+              <Select
+                label="Default currency"
+                value={formData.defaultCurrency}
+                options={["USD", "IQD"]}
+                set={(v) => patchForm({ defaultCurrency: v as "USD" | "IQD" })}
+              />
+              <Field
+                label="Date format"
+                value={formData.dateFormat}
+                set={(v) => patchForm({ dateFormat: v })}
+              />
+              <Select
+                label="Time format"
+                value={formData.timeFormat}
+                options={["12h", "24h"]}
+                set={(v) => patchForm({ timeFormat: v as "12h" | "24h" })}
+              />
+              <Field
+                label="Number format"
+                value={formData.numberFormat}
+                set={(v) => patchForm({ numberFormat: v })}
+              />
+              <Field
+                label="Language preparation"
+                value={formData.language}
+                set={(v) => patchForm({ language: v })}
+              />
+              <Field
+                label="Time zone"
+                value={formData.timeZone}
+                set={(v) => patchForm({ timeZone: v })}
+              />
+            </Grid>
+          )}
+
+          {tab === "Defaults" && (
+            <Grid>
+              <Select
+                label="Commission type"
+                value={formData.commissionType}
+                options={["Percentage", "Fixed"]}
+                set={(v) =>
+                  patchForm({ commissionType: v as "Percentage" | "Fixed" })
+                }
+              />
+              <NumberField
+                label="Commission value"
+                value={formData.commissionValue}
+                set={(v) => patchForm({ commissionValue: v })}
+              />
+              <NumberField
+                label="Agent share %"
+                value={formData.agentShare}
+                set={(v) => patchForm({ agentShare: v })}
+              />
+              <NumberField
+                label="Offer expiration days"
+                value={formData.offerExpirationDays}
+                set={(v) => patchForm({ offerExpirationDays: v })}
+              />
+              <NumberField
+                label="Viewing reminder hours"
+                value={formData.viewingReminderHours}
+                set={(v) => patchForm({ viewingReminderHours: v })}
+              />
+              <NumberField
+                label="Payment reminder days"
+                value={formData.paymentReminderDays}
+                set={(v) => patchForm({ paymentReminderDays: v })}
+              />
+              <Field
+                label="Contract prefix"
+                value={formData.contractPrefix}
+                set={(v) => patchForm({ contractPrefix: v })}
+              />
+              <Field
+                label="Property prefix"
+                value={formData.propertyPrefix}
+                set={(v) => patchForm({ propertyPrefix: v })}
+              />
+            </Grid>
+          )}
+
+          {tab === "Custom lists" && (
+            <div className="space-y-5">
+              {Object.entries(formData.customLists).map(([key, options]) => (
+                <CustomList
+                  key={key}
+                  title={key}
+                  options={options}
+                  onChange={(next) =>
+                    patchForm({
+                      customLists: { ...formData.customLists, [key]: next },
+                    })
+                  }
+                  onDelete={(id) => {
+                    const target = options.find((option) => option.id === id);
+                    if (!target) return;
+                    const used = usedLabelsFor(key);
+                    let result = deleteCustomOption(options, id, used);
+                    if (!result.ok) {
+                      const replacement = window.prompt(
+                        result.message,
+                        options.find(
+                          (option) => option.id !== id && !option.archived,
+                        )?.label ?? "",
+                      );
+                      if (!replacement?.trim()) return;
+                      replaceUsedOption(key, target.label, replacement.trim());
+                      result = deleteCustomOption(
+                        options,
+                        id,
+                        used,
+                        replacement.trim(),
+                      );
+                    }
+                    if (result.ok)
+                      patchForm({
+                        customLists: {
+                          ...formData.customLists,
+                          [key]: result.options,
+                        },
+                      });
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {tab === "Appearance" && (
+            <div className="space-y-6">
+              <Grid>
+                <Select
+                  label="Theme"
+                  value={formData.theme}
+                  options={["light", "dark"]}
+                  set={(v) => patchForm({ theme: v as "light" | "dark" })}
+                />
+                <Select
+                  label="Density"
+                  value={formData.density}
+                  options={["comfortable", "compact"]}
+                  set={(v) => patchForm({ density: v as "comfortable" | "compact" })}
+                />
+                <label className="flex min-h-12 items-center gap-3 font-bold text-slate-800 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={formData.sidebarCollapsed}
+                    onChange={(e) => patchForm({ sidebarCollapsed: e.target.checked })}
+                    className="h-4 w-4 rounded accent-amber-500"
+                  />{" "}
+                  Collapse desktop sidebar
+                </label>
+              </Grid>
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                >
+                  <Save size={18} /> Apply Theme Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab === "Data" && (
+            <div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={exportBackup}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-900 px-5 font-bold hover:opacity-90"
+                >
+                  <Download size={17} /> Export JSON backup
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => readBackup(e.target.files?.[0])}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 font-bold"
+                >
+                  <Upload size={17} /> Import backup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Restore default settings? Saved business records will not be erased.",
+                      )
+                    ) {
+                      saveSettings(structuredClone(defaultSettings));
+                      setFormData(structuredClone(defaultSettings));
+                    }
+                  }}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 font-bold"
+                >
+                  <RotateCcw size={17} /> Restore settings
+                </button>
+              </div>
+
+              {backup && (
+                <div className="mt-5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4">
+                  <p className="font-bold text-amber-900 dark:text-amber-100">Backup preview</p>
+                  <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+                    {Object.keys(backup.localStorage).length} EstateFlow data
+                    collections · {backup.createdAt}
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void applyCompleteBackup(backup, "merge");
+                        setMessage(
+                          "Backup merged. Refresh to reload all workspaces.",
+                        );
+                      }}
+                      className="min-h-11 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 font-bold"
+                    >
+                      Merge
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Replace all current EstateFlow local data with this backup?",
+                          )
+                        ) {
+                          void applyCompleteBackup(backup, "replace");
+                          setMessage("Backup replaced. Refresh to reload.");
+                        }
+                      }}
+                      className="min-h-11 rounded-xl bg-rose-600 px-4 font-bold text-white hover:bg-rose-700"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </form>
+      </div>
     </DashboardShell>
   );
 }
@@ -479,7 +520,7 @@ function Field({
     <label className="text-sm font-bold text-slate-700 dark:text-slate-200">
       {label}
       <input
-        value={value}
+        value={value ?? ""}
         onChange={(e) => set(e.target.value)}
         className={`mt-2 ${input}`}
       />
@@ -502,7 +543,7 @@ function NumberField({
       <input
         type="number"
         min="0"
-        value={value}
+        value={value ?? 0}
         onChange={(e) => set(Math.max(0, Number(e.target.value)))}
         className={`mt-2 ${input}`}
       />
@@ -581,7 +622,7 @@ function CustomList({
           className={input}
           placeholder="Add option"
         />
-        <button className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 font-bold text-slate-950">
+        <button type="submit" className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 font-bold text-slate-950">
           Add
         </button>
       </form>
@@ -592,6 +633,7 @@ function CustomList({
             className="inline-flex items-center gap-2 rounded-full bg-slate-100 dark:bg-slate-700/80 px-3 py-2 text-sm text-slate-800 dark:text-slate-200"
           >
             <button
+              type="button"
               onClick={() => {
                 const label = window.prompt("Rename option", o.label);
                 if (label?.trim())
@@ -605,6 +647,7 @@ function CustomList({
               {o.label}
             </button>
             <button
+              type="button"
               aria-label={`Move ${o.label} earlier`}
               disabled={i === 0}
               onClick={() => {
@@ -616,6 +659,7 @@ function CustomList({
               ↑
             </button>
             <button
+              type="button"
               onClick={() =>
                 onChange(
                   options.map((x) =>
@@ -626,7 +670,7 @@ function CustomList({
             >
               {o.archived ? "Restore" : "Archive"}
             </button>
-            <button onClick={() => onDelete(o.id)} className="text-rose-600 dark:text-rose-400">
+            <button type="button" onClick={() => onDelete(o.id)} className="text-rose-600 dark:text-rose-400">
               ×
             </button>
           </span>
