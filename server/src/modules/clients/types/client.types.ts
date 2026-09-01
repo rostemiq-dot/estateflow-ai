@@ -4,13 +4,13 @@ import type {
   ClientPreference,
   ClientRole,
   ClientTag,
-  Prisma,
 } from "@prisma/client";
 import type {
   CreateClientInput,
   ListClientsQuery,
   UpdateClientInput,
 } from "../validators/client.validators.js";
+import type { Prisma } from "@prisma/client";
 
 export type ClientRecord = Prisma.ClientGetPayload<{
   include: {
@@ -25,10 +25,10 @@ export type ClientDetailRecord = Prisma.ClientGetPayload<{
     preferences: true;
   };
 }>;
-export type ClientWriteData = Omit<
-  Prisma.ClientUncheckedCreateInput,
-  "nextFollowUpAt" | "lastContactAt"
-> & {
+export type ClientWriteData = CreateClientInput & {
+  agencyId: string;
+  assignedAgentId: string | null;
+  fullName: string;
   nextFollowUpAt?: Date | null;
   lastContactAt?: Date | null;
 };
