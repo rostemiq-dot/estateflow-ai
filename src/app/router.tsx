@@ -15,22 +15,28 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { HelpPage } from "../pages/HelpPage";
 import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
+import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
-  { path: "/", element: <DashboardPage /> },
-  { path: "/properties", element: <PropertiesPage /> },
-  { path: "/clients", element: <ClientsPage /> },
-  { path: "/matches", element: <SmartMatchesPage /> },
-  { path: "/viewings", element: <ViewingsPage /> },
-  { path: "/deals", element: <DealsPage /> },
-  { path: "/contracts", element: <ContractsPage /> },
-  { path: "/documents", element: <DocumentsPage /> },
-  { path: "/tasks", element: <TasksPage /> },
-  { path: "/team", element: <TeamPage /> },
-  { path: "/reports", element: <ReportsPage /> },
-  { path: "/automation", element: <AutomationPage /> },
-  { path: "/settings", element: <SettingsPage /> },
-  { path: "/help", element: <HelpPage /> },
+  {
+    element: <ProtectedRoute />,
+    children: [
+      { path: "/", element: <DashboardPage /> },
+      { path: "/properties", element: <PropertiesPage /> },
+      { path: "/clients", element: <ClientsPage /> },
+      { path: "/matches", element: <SmartMatchesPage /> },
+      { path: "/viewings", element: <ViewingsPage /> },
+      { path: "/deals", element: <DealsPage /> },
+      { path: "/contracts", element: <ContractsPage /> },
+      { path: "/documents", element: <DocumentsPage /> },
+      { path: "/tasks", element: <TasksPage /> },
+      { path: "/team", element: <TeamPage /> },
+      { path: "/reports", element: <ReportsPage /> },
+      { path: "/automation", element: <AutomationPage /> },
+      { path: "/settings", element: <SettingsPage /> },
+      { path: "/help", element: <HelpPage /> },
+    ],
+  },
 ]);
