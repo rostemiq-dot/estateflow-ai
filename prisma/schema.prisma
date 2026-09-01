@@ -151,6 +151,26 @@ enum DealActivityType {
   VIEWING_SCHEDULED
 }
 
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  SYSTEM
+  TASK
+  GENERAL
+}
+
 model Agency {
   id               String           @id @default(uuid()) @db.Uuid
   name             String           @db.VarChar(160)
@@ -167,6 +187,8 @@ model Agency {
   clientTags       ClientTag[]
   deals            Deal[]
   viewings         Viewing[]
+  tasks            Task[]
+  notifications    Notification[]
 
   @@index([name])
   @@index([subscriptionTier])
@@ -197,6 +219,9 @@ model User {
   assignedViewings   Viewing[]          @relation("ViewingAssignedAgent")
   createdViewings    Viewing[]          @relation("ViewingCreator")
   dealActivities     DealActivity[]     @relation("DealActivityCreator")
+  assignedTasks      Task[]             @relation("TaskAssignee")
+  createdTasks       Task[]             @relation("TaskCreator")
+  notifications      Notification[]     @relation("NotificationRecipient")
 
   @@index([agencyId])
   @@index([agencyId, role])
@@ -268,6 +293,8 @@ model Property {
   tags            PropertyTagAssignment[]
   deals           Deal[]
   viewings        Viewing[]
+  tasks           Task[]
+  notifications   Notification[]
 
   @@unique([agencyId, referenceCode])
   @@index([agencyId, deletedAt])
@@ -399,6 +426,8 @@ model Client {
   activities        ClientActivity[]
   deals             Deal[]
   viewings          Viewing[]
+  tasks             Task[]
+  notifications     Notification[]
 
   @@index([agencyId, deletedAt, createdAt])
   @@index([agencyId, assignedAgentId, deletedAt])
@@ -527,6 +556,8 @@ model Deal {
   notes              DealNote[]
   viewings           Viewing[]
   activities         DealActivity[]
+  tasks              Task[]
+  notifications      Notification[]
 
   @@index([agencyId, stage, deletedAt])
   @@index([agencyId, status, deletedAt])
@@ -601,6 +632,8 @@ model Viewing {
   creator            User            @relation("ViewingCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
   clientActivity     ClientActivity?
   dealActivity       DealActivity?
+  tasks              Task[]
+  notifications      Notification[]
 
   @@index([agencyId, startAt, deletedAt])
   @@index([agencyId, status, startAt, deletedAt])
@@ -628,4 +661,64 @@ model DealActivity {
   @@index([dealId, createdAt])
   @@index([createdById])
   @@map("deal_activities")
+}
+
+model Task {
+  id             String         @id @default(uuid()) @db.Uuid
+  agencyId       String         @map("agency_id") @db.Uuid
+  assignedUserId String         @map("assigned_user_id") @db.Uuid
+  createdById    String         @map("created_by_id") @db.Uuid
+  clientId       String?        @map("client_id") @db.Uuid
+  propertyId     String?        @map("property_id") @db.Uuid
+  dealId         String?        @map("deal_id") @db.Uuid
+  viewingId      String?        @map("viewing_id") @db.Uuid
+  title          String         @db.VarChar(180)
+  description    String?        @db.Text
+  status         TaskStatus     @default(TODO)
+  priority       TaskPriority   @default(MEDIUM)
+  dueAt          DateTime?      @map("due_at") @db.Timestamptz(3)
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  agency         Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignedUser   User           @relation("TaskAssignee", fields: [assignedUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator        User           @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  client         Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  property       Property?      @relation(fields: [propertyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  deal           Deal?          @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  viewing        Viewing?       @relation(fields: [viewingId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  notifications  Notification[]
+
+  @@index([agencyId, assignedUserId, deletedAt])
+  @@index([agencyId, status, dueAt, deletedAt])
+  @@map("tasks")
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  agencyId    String           @map("agency_id") @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  clientId    String?          @map("client_id") @db.Uuid
+  propertyId  String?          @map("property_id") @db.Uuid
+  dealId      String?          @map("deal_id") @db.Uuid
+  viewingId   String?          @map("viewing_id") @db.Uuid
+  taskId      String?          @map("task_id") @db.Uuid
+  type        NotificationType @default(GENERAL)
+  title       String           @db.VarChar(180)
+  message     String?          @db.Text
+  readAt      DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  agency      Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  client      Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  property    Property?        @relation(fields: [propertyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  deal        Deal?            @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  viewing     Viewing?         @relation(fields: [viewingId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([agencyId, recipientId, readAt, deletedAt])
+  @@index([agencyId, createdAt, deletedAt])
+  @@map("notifications")
 }

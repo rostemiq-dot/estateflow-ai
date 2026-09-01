@@ -1,0 +1,11 @@
+import { TaskPriority, TaskStatus } from "@prisma/client";
+import { z } from "zod";
+const id = z.uuid(); const text = (n:number) => z.string().trim().max(n).nullable().optional();
+const date = z.iso.datetime({ offset:true }).nullable().optional();
+export const taskParamsSchema=z.object({taskId:id}).strict();
+export const createTaskSchema=z.object({title:z.string().trim().min(2).max(180),description:text(20000),assignedUserId:id,clientId:id.nullable().optional(),propertyId:id.nullable().optional(),dealId:id.nullable().optional(),viewingId:id.nullable().optional(),priority:z.enum(TaskPriority).optional(),dueAt:date}).strict();
+export const updateTaskSchema=createTaskSchema.omit({assignedUserId:true}).partial().refine(v=>Object.keys(v).length>0);
+export const assignmentSchema=z.object({assignedUserId:id}).strict();
+export const statusSchema=z.object({status:z.enum(TaskStatus)}).strict();
+export const listTasksQuerySchema=z.object({page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(20),search:z.string().trim().max(200).optional(),status:z.enum(TaskStatus).optional(),priority:z.enum(TaskPriority).optional(),assignedUserId:id.optional(),clientId:id.optional(),propertyId:id.optional(),dealId:id.optional(),viewingId:id.optional(),sortBy:z.enum(["createdAt","updatedAt","dueAt","title","priority"]).default("updatedAt"),sortOrder:z.enum(["asc","desc"]).default("desc")}).strict();
+export type CreateTaskInput=z.infer<typeof createTaskSchema>; export type UpdateTaskInput=z.infer<typeof updateTaskSchema>; export type ListTasksQuery=z.infer<typeof listTasksQuerySchema>;

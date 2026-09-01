@@ -1,5 +1,8 @@
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { useState } from "react";
+import { LogOut } from "lucide-react";
+import { useAuth } from "../../features/auth/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { dashboardNav } from "../../features/dashboard/dashboard-nav";
 import {
@@ -13,6 +16,8 @@ type SidebarProps = {
 };
 
 export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(
     () => loadSettings().sidebarCollapsed,
   );
@@ -100,6 +105,9 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
           Your smart workspace for properties, clients, and deals.
         </p>
       </div>
+      <button type="button" onClick={async () => { await signOut(); navigate("/login", { replace: true }); }} className="mt-4 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-300 hover:bg-slate-800 hover:text-white">
+        <LogOut size={18} /> Sign out
+      </button>
     </aside>
   );
 }

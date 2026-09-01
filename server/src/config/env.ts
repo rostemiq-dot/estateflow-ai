@@ -20,6 +20,8 @@ const envSchema = z
       .optional(),
     JWT_ACCESS_SECRET: z.string().min(32).optional(),
     JWT_REFRESH_SECRET: z.string().min(32).optional(),
+    SUPABASE_URL: z.url().optional(),
+    SUPABASE_ANON_KEY: z.string().min(1).optional(),
   })
   .superRefine((values, context) => {
     if (values.NODE_ENV !== "production") {
@@ -61,5 +63,7 @@ export const env = {
   JWT_REFRESH_SECRET:
     parsedEnv.data.JWT_REFRESH_SECRET ??
     "development-refresh-secret-change-before-production",
+  SUPABASE_URL: parsedEnv.data.SUPABASE_URL,
+  SUPABASE_ANON_KEY: parsedEnv.data.SUPABASE_ANON_KEY,
 };
 export type Env = z.infer<typeof envSchema>;

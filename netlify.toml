@@ -1,0 +1,17 @@
+[build]
+  command = "npm run prisma:generate && npm run build:client"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  included_files = ["node_modules/.prisma/client/**", "node_modules/@prisma/client/**"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
