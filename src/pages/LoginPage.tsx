@@ -17,7 +17,7 @@ export function LoginPage() {
     setError("");
     setLoading(true);
 
-    const endpoint = isRegister ? "/api/auth/register" : "/api/auth/login";
+    const endpoint = isRegister ? "/.netlify/functions/api/auth/register" : "/.netlify/functions/api/auth/login";
     const payload = isRegister
       ? { agencyName, email, password }
       : { email, password };
