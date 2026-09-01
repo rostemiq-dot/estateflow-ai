@@ -1,3 +1,4 @@
+// src/lib/api.ts
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("estateflow_token");
 
@@ -14,7 +15,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || "An unexpected error occurred.");
+    throw new Error(errorData.message || "Authentication or network request failed.");
   }
 
   return response.json();
