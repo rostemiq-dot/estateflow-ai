@@ -26,12 +26,9 @@ export type ClientDetailRecord = Prisma.ClientGetPayload<{
   };
 }>;
 export type ClientWriteData = Omit<
-  CreateClientInput,
-  "assignedAgentId" | "nextFollowUpAt" | "lastContactAt"
+  Prisma.ClientUncheckedCreateInput,
+  "nextFollowUpAt" | "lastContactAt"
 > & {
-  agencyId: string;
-  assignedAgentId: string | null;
-  fullName: string;
   nextFollowUpAt?: Date | null;
   lastContactAt?: Date | null;
 };
