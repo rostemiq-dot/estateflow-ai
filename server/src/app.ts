@@ -19,33 +19,41 @@ import { propertyRouter } from "./modules/properties/routes/property.routes.js";
 import {
   amenityRouter,
   mediaRouter,
-  propertyTagRouter,
+  tagRouter,
 } from "./modules/property-metadata/routes/metadata.routes.js";
+import { databaseHealthRouter } from "./routes/database-health.routes.js";
+import { healthRouter } from "./routes/health.routes.js";
 
-const app = express();
+export const createApp = () => {
+  const app = express();
 
-app.disable("x-powered-by");
-app.use(helmet());
-app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
-app.use(cookieParser());
-app.use(express.json({ limit: "2mb" }));
-app.use(pinoHttp({ logger }));
+  app.disable("x-powered-by");
+  app.use(helmet());
+  app.use(
+    cors({
+      origin: env.CLIENT_URL,
+      credentials: true,
+    }),
+  );
+  app.use(express.json());
+  app.use(cookieParser());
+  app.use(pinoHttp({ logger }));
 
-app.get("/api/health", (_req, res) => {
-  res.status(200).json({ status: "ok" });
-});
+  app.use("/api/auth", authRouter);
+  app.use("/api/clients", clientRouter);
+  app.use("/api/client-tags", clientTagRouter);
+  app.use("/api/deals", dealRouter);
+  app.use("/api/viewings", viewingRouter);
+  app.use("/api/properties", propertyRouter);
+  app.use("/api/properties/:propertyId/media", mediaRouter);
+  app.use("/api/amenities", amenityRouter);
+  app.use("/api/tags", tagRouter);
+  app.use("/api/health/database", databaseHealthRouter);
+  app.use("/api/health", healthRouter);
+  app.use(notFound);
+  app.use(errorHandler);
 
-app.use("/api/auth", authRouter);
-app.use("/api/properties", propertyRouter);
-app.use("/api/properties", mediaRouter);
-app.use("/api/property-metadata/amenities", amenityRouter);
-app.use("/api/property-metadata/tags", propertyTagRouter);
-app.use("/api/clients", clientRouter);
-app.use("/api/clients", clientTagRouter);
-app.use("/api/deals", dealRouter);
-app.use("/api/viewings", viewingRouter);
+  return app;
+};
 
-app.use(notFound);
-app.use(errorHandler);
-
-export { app };
+export const app = createApp();
