@@ -35,7 +35,7 @@ export function LoginPage() {
       }
 
       const data = await response.json();
-      login(data.token, data.user);
+      login(data.accessToken, data.user);
       navigate("/");
     } catch (err) {
       if (err instanceof Error) {
