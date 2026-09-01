@@ -39,6 +39,9 @@ export const createApp = () => {
   app.use(pinoHttp({ logger }));
 
   app.use("/api/auth", authRouter);
+  // Netlify rewrites may strip the /api prefix before invoking the function.
+  // Keep the auth routes available at both paths so login/registration work in either mode.
+  app.use("/auth", authRouter);
   app.use("/api/clients", clientRouter);
   app.use("/api/client-tags", clientTagRouter);
   app.use("/api/deals", dealRouter);
