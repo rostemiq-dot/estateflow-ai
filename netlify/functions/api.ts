@@ -12,6 +12,9 @@ export const handler: Handler = async (event, context) => {
     event.path = `/api${suffix || ""}`;
     event.rawPath = event.path;
     event.rawQuery = event.rawQuery ?? "";
+  } else if (!event.path.startsWith("/api")) {
+    event.path = `/api${event.path === "/" ? "" : event.path}`;
+    event.rawPath = event.path;
   }
   return apiHandler(event, context);
 };
