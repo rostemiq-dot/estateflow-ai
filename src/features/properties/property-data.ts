@@ -22,6 +22,7 @@ export type PropertyCurrency = (typeof PROPERTY_CURRENCIES)[number];
 
 export type Property = {
   id: string;
+  referenceCode?: string;
   title: string;
   district: string;
   location: string;
