@@ -30,26 +30,29 @@ type ApiMediaItem = Omit<PropertyMediaItem, "url"> & {
 };
 
 type MediaListResponse = { data: ApiMediaItem[] };
+type MediaCreateResponse = { data: ApiMediaItem };
+
+async function signedUrl(storagePath: string) {
+  const { data, error } = await requireSupabase().storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, 60 * 60);
+  if (error || !data?.signedUrl) {
+    throw new Error("Could not create a secure URL for the property photo.");
+  }
+  return data.signedUrl;
+}
 
 export async function listPropertyMedia(propertyId: string): Promise<PropertyMediaItem[]> {
   const response = await apiFetch<MediaListResponse>(
     `/api/properties/${encodeURIComponent(propertyId)}/media`,
   );
-  const supabase = requireSupabase();
 
-  const media = await Promise.all(
-    response.data.map(async (item) => {
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(item.storagePath, 60 * 60);
-      if (error || !data?.signedUrl) {
-        throw new Error(`Could not load property photo ${item.fileName}.`);
-      }
-      return { ...item, url: data.signedUrl };
-    }),
+  return Promise.all(
+    response.data.map(async (item) => ({
+      ...item,
+      url: await signedUrl(item.storagePath),
+    })),
   );
-
-  return media;
 }
 
 export async function uploadPropertyImages(
@@ -87,7 +90,7 @@ export async function uploadPropertyImages(
     }
 
     try {
-      const response = await apiFetch<ApiMediaItem>(
+      const response = await apiFetch<MediaCreateResponse>(
         `/api/properties/${encodeURIComponent(propertyId)}/media`,
         {
           method: "POST",
@@ -105,14 +108,10 @@ export async function uploadPropertyImages(
         },
       );
 
-      const { data: signed, error: signedError } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(storagePath, 60 * 60);
-      if (signedError || !signed?.signedUrl) {
-        throw new Error(`Photo uploaded but could not be displayed: ${file.name}`);
-      }
-
-      uploaded.push({ ...response, url: signed.signedUrl });
+      uploaded.push({
+        ...response.data,
+        url: await signedUrl(storagePath),
+      });
     } catch (error) {
       await supabase.storage.from(BUCKET).remove([storagePath]);
       throw error;
