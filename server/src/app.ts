@@ -1,5 +1,4 @@
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
@@ -8,7 +7,6 @@ import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { notFound } from "./middleware/not-found.js";
-import { authRouter } from "./modules/auth/routes/auth.routes.js";
 import {
   clientRouter,
   clientTagRouter,
@@ -38,10 +36,8 @@ export const createApp = () => {
   // Keep JSON requests bounded. Property media is stored separately and must
   // never be sent as base64 through the API.
   app.use(express.json({ limit: "1mb" }));
-  app.use(cookieParser());
   app.use(pinoHttp({ logger }));
 
-  app.use("/api/auth", authRouter);
   app.use("/api/clients", clientRouter);
   app.use("/api/client-tags", clientTagRouter);
   app.use("/api/deals", dealRouter);
