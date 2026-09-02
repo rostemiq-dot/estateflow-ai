@@ -28,19 +28,21 @@ const envSchema = z
       return;
     }
 
-    if (!values.JWT_ACCESS_SECRET) {
+    const usesSupabaseAuth = Boolean(values.SUPABASE_URL && values.SUPABASE_ANON_KEY);
+
+    if (!usesSupabaseAuth && !values.JWT_ACCESS_SECRET) {
       context.addIssue({
         code: "custom",
         path: ["JWT_ACCESS_SECRET"],
-        message: "JWT_ACCESS_SECRET is required in production",
+        message: "JWT_ACCESS_SECRET is required when Supabase Auth is not configured",
       });
     }
 
-    if (!values.JWT_REFRESH_SECRET) {
+    if (!usesSupabaseAuth && !values.JWT_REFRESH_SECRET) {
       context.addIssue({
         code: "custom",
         path: ["JWT_REFRESH_SECRET"],
-        message: "JWT_REFRESH_SECRET is required in production",
+        message: "JWT_REFRESH_SECRET is required when Supabase Auth is not configured",
       });
     }
   });
