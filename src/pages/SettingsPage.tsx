@@ -29,6 +29,7 @@ import type { ClientStage } from "../features/clients/client-data";
 const input = "min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm";
 export function SettingsPage() {
   const [settings, setSettings] = useState(loadSettings),
+    [agencyDraft, setAgencyDraft] = useState(loadSettings),
     [tab, setTab] = useState("Agency"),
     [message, setMessage] = useState(""),
     [backup, setBackup] = useState<EstateFlowBackup | null>(null);
@@ -39,6 +40,9 @@ export function SettingsPage() {
     setMessage("Settings saved.");
   };
   const patch = (p: Partial<AppSettings>) => save({ ...settings, ...p });
+  const patchAgency = (p: Partial<AppSettings>) =>
+    setAgencyDraft((current) => ({ ...current, ...p }));
+  const saveAgency = () => save(agencyDraft);
   function usedLabelsFor(key: string) {
     if (key === "propertyTypes")
       return loadProperties().map((property) => property.propertyType);
@@ -147,53 +151,53 @@ export function SettingsPage() {
           <Grid>
             <Field
               label="Agency name"
-              value={settings.agencyName}
-              set={(v) => patch({ agencyName: v })}
+              value={agencyDraft.agencyName}
+              set={(v) => patchAgency({ agencyName: v })}
             />
             <Field
               label="Logo URL or data URL"
-              value={settings.logo}
-              set={(v) => patch({ logo: v })}
+              value={agencyDraft.logo}
+              set={(v) => patchAgency({ logo: v })}
             />
             <Field
               label="Phone"
-              value={settings.phone}
-              set={(v) => patch({ phone: v })}
+              value={agencyDraft.phone}
+              set={(v) => patchAgency({ phone: v })}
             />
             <Field
               label="WhatsApp"
-              value={settings.whatsapp}
-              set={(v) => patch({ whatsapp: v })}
+              value={agencyDraft.whatsapp}
+              set={(v) => patchAgency({ whatsapp: v })}
             />
             <Field
               label="Email"
-              value={settings.email}
-              set={(v) => patch({ email: v })}
+              value={agencyDraft.email}
+              set={(v) => patchAgency({ email: v })}
             />
             <Field
               label="Address"
-              value={settings.address}
-              set={(v) => patch({ address: v })}
+              value={agencyDraft.address}
+              set={(v) => patchAgency({ address: v })}
             />
             <Field
               label="Website"
-              value={settings.website}
-              set={(v) => patch({ website: v })}
+              value={agencyDraft.website}
+              set={(v) => patchAgency({ website: v })}
             />
             <Field
               label="Registration / tax"
-              value={settings.registrationInfo}
-              set={(v) => patch({ registrationInfo: v })}
+              value={agencyDraft.registrationInfo}
+              set={(v) => patchAgency({ registrationInfo: v })}
             />
             <Field
               label="Contract footer"
-              value={settings.contractFooter}
-              set={(v) => patch({ contractFooter: v })}
+              value={agencyDraft.contractFooter}
+              set={(v) => patchAgency({ contractFooter: v })}
             />
             <Field
               label="Default responsible agent"
-              value={settings.defaultResponsibleAgent}
-              set={(v) => patch({ defaultResponsibleAgent: v })}
+              value={agencyDraft.defaultResponsibleAgent}
+              set={(v) => patchAgency({ defaultResponsibleAgent: v })}
             />
           </Grid>
         )}
