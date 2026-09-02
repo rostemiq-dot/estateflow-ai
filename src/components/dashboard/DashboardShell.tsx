@@ -8,6 +8,7 @@ type DashboardShellProps = {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+
   useEffect(() => {
     if (!isNavigationOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -32,12 +33,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
           className="fixed inset-0 z-30 bg-slate-950/55 backdrop-blur-sm lg:hidden"
         />
       )}
-
       <Sidebar
         isMobileOpen={isNavigationOpen}
         onClose={() => setIsNavigationOpen(false)}
       />
-
       <div className="min-w-0 flex-1">
         <Topbar onOpenNavigation={() => setIsNavigationOpen(true)} />
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
