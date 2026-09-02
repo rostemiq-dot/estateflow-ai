@@ -1,5 +1,11 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { PrismaClient } from "@prisma/client";
+
+type VercelRequest = IncomingMessage;
+type VercelResponse = ServerResponse<IncomingMessage> & {
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+};
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 const prisma = globalForPrisma.prisma ?? new PrismaClient({ log: ["error"] });
@@ -11,6 +17,11 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     return res.status(200).json({ success: true, status: "healthy", service: "estateflow-database" });
   } catch (error) {
     console.error("database-health", error);
-    return res.status(503).json({ success: false, status: "unhealthy", service: "estateflow-database", error: error instanceof Error ? error.message : String(error) });
+    return res.status(503).json({
+      success: false,
+      status: "unhealthy",
+      service: "estateflow-database",
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
