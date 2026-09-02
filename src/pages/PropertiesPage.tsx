@@ -7,6 +7,7 @@ import { PropertyCard } from "../components/dashboard/properties/PropertyCard";
 import { PropertyCreateModal } from "../components/dashboard/properties/PropertyCreateModal";
 import { PropertyDetailsModal } from "../components/dashboard/properties/PropertyDetailsModal";
 import { PropertyEditModal } from "../components/dashboard/properties/PropertyEditModal";
+import { PropertyPhotoManager } from "../components/dashboard/properties/PropertyPhotoManager";
 import { loadActivities, saveActivities } from "../features/activities/activity-storage";
 import { loadClients } from "../features/clients/client-storage";
 import { getMatchesForProperty } from "../features/matching/matching";
@@ -57,6 +58,7 @@ export function PropertiesPage() {
   const [activities, setActivities] = useState(loadActivities);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);
+  const [photoPropertyId, setPhotoPropertyId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [pageError, setPageError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +66,7 @@ export function PropertiesPage() {
   const isCreateOpen = searchParams.get("add") === "true";
   const selectedProperty = propertyList.find((property) => property.id === selectedPropertyId) ?? null;
   const editingProperty = propertyList.find((property) => property.id === editingPropertyId) ?? null;
+  const photoProperty = propertyList.find((property) => property.id === photoPropertyId) ?? null;
   const pendingDeleteProperty = propertyList.find((property) => property.id === pendingDeleteId) ?? null;
 
   const filteredProperties = useMemo(
@@ -182,6 +185,7 @@ export function PropertiesPage() {
     setPropertyList((current) => current.filter((property) => property.id !== propertyId));
     setPendingDeleteId(null);
     setSelectedPropertyId((current) => (current === propertyId ? null : current));
+    setPhotoPropertyId((current) => (current === propertyId ? null : current));
     void deletePropertyFromDatabase(propertyId).catch((error) => {
       setPropertyList((current) => [deleted, ...current]);
       setPageError(error instanceof Error ? error.message : "Could not delete the property.");
@@ -248,12 +252,13 @@ export function PropertiesPage() {
       </section>
 
       <section className="mt-6">
-        {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">Loading properties from PostgreSQL...</div> : filteredProperties.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><p className="text-lg font-bold text-slate-950">No properties yet</p><p className="mt-2 text-sm text-slate-500">Add your first property and it will be saved in the EstateFlow database.</p></div> : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{filteredProperties.map((property) => { const matches = getMatchesForProperty(property, clients, true); return <PropertyCard key={property.id} property={property} bestMatchScore={matches[0]?.score ?? 0} matchCount={matches.length} onView={() => setSelectedPropertyId(property.id)} onEdit={() => setEditingPropertyId(property.id)} onDuplicate={() => duplicateSavedProperty(property)} onDelete={() => setPendingDeleteId(property.id)} />; })}</div>}
+        {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm font-semibold text-slate-500">Loading properties from PostgreSQL...</div> : filteredProperties.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center"><p className="text-lg font-bold text-slate-950">No properties yet</p><p className="mt-2 text-sm text-slate-500">Add your first property and it will be saved in the EstateFlow database.</p></div> : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{filteredProperties.map((property) => { const matches = getMatchesForProperty(property, clients, true); return <PropertyCard key={property.id} property={property} bestMatchScore={matches[0]?.score ?? 0} matchCount={matches.length} onView={() => setSelectedPropertyId(property.id)} onPhotos={() => setPhotoPropertyId(property.id)} onEdit={() => setEditingPropertyId(property.id)} onDuplicate={() => duplicateSavedProperty(property)} onDelete={() => setPendingDeleteId(property.id)} />; })}</div>}
       </section>
 
       {isCreateOpen && <PropertyCreateModal existingProperties={propertyList} onClose={closeCreateModal} onCreate={createProperty} />}
       {editingProperty && <PropertyEditModal property={editingProperty} onClose={() => setEditingPropertyId(null)} onSave={saveEditedProperty} />}
       {selectedProperty && <PropertyDetailsModal property={selectedProperty} clients={clients} viewings={viewings} activities={activities} onClose={() => setSelectedPropertyId(null)} onStatusChange={(status) => updatePropertyStatus(selectedProperty.id, status)} onEdit={() => { setEditingPropertyId(selectedProperty.id); setSelectedPropertyId(null); }} onDuplicate={() => duplicateSavedProperty(selectedProperty)} onDelete={() => { setPendingDeleteId(selectedProperty.id); setSelectedPropertyId(null); }} />}
+      {photoProperty && <PropertyPhotoManager property={photoProperty} onClose={() => setPhotoPropertyId(null)} />}
       {pendingDeleteProperty && <DeletePropertyModal property={pendingDeleteProperty} onCancel={() => setPendingDeleteId(null)} onConfirm={() => deleteSavedProperty(pendingDeleteProperty.id)} />}
     </DashboardShell>
   );
