@@ -28,9 +28,9 @@ const shutdown = (signal: string, exitCode = 0) => {
   }, 10_000).unref();
 };
 
-const server = app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, "0.0.0.0", () => {
   logger.info(
-    { environment: env.NODE_ENV, port: env.PORT },
+    { environment: env.NODE_ENV, host: "0.0.0.0", port: env.PORT },
     "EstateFlow API is running",
   );
 });
