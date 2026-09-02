@@ -239,9 +239,11 @@ model RefreshToken {
   revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
   replacedByTokenId String?   @map("replaced_by_token_id") @db.Uuid
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  replacedBy        RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  replaces          RefreshToken[] @relation("RefreshTokenReplacement")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  replacedBy RefreshToken?  @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  replaces   RefreshToken[] @relation("RefreshTokenReplacement")
 
   @@index([userId])
   @@index([userId, revokedAt])
@@ -279,9 +281,6 @@ model Property {
   parkingSpaces   Int?                    @map("parking_spaces")
   yearBuilt       Int?                    @map("year_built")
   furnished       Boolean                 @default(false)
-  ownerName       String?                 @map("owner_name") @db.VarChar(160)
-  ownerPhone      String?                 @map("owner_phone") @db.VarChar(40)
-  features        Json?
   notes           String?                 @db.Text
   createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -326,7 +325,7 @@ model PropertyMedia {
   uploadedById  String            @map("uploaded_by_id") @db.Uuid
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt     DateTime?         @map("deleted_at") @map("deleted_at") @db.Timestamptz(3)
+  deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(3)
   property      Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   uploadedBy    User              @relation("PropertyMediaUploader", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
@@ -335,4 +334,391 @@ model PropertyMedia {
   @@index([propertyId, isCover, deletedAt])
   @@index([uploadedById])
   @@map("property_media")
+}
+
+model Amenity {
+  id         String            @id @default(uuid()) @db.Uuid
+  agencyId   String            @map("agency_id") @db.Uuid
+  name       String            @db.VarChar(120)
+  slug       String            @db.VarChar(120)
+  icon       String?           @db.VarChar(120)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt  DateTime?         @map("deleted_at") @db.Timestamptz(3)
+  agency     Agency            @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  properties PropertyAmenity[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, deletedAt, name])
+  @@map("amenities")
+}
+
+model PropertyAmenity {
+  propertyId String   @map("property_id") @db.Uuid
+  amenityId  String   @map("amenity_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  amenity    Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([propertyId, amenityId])
+  @@index([amenityId])
+  @@map("property_amenities")
+}
+
+model PropertyTag {
+  id         String                  @id @default(uuid()) @db.Uuid
+  agencyId   String                  @map("agency_id") @db.Uuid
+  name       String                  @db.VarChar(120)
+  slug       String                  @db.VarChar(120)
+  color      String?                 @db.VarChar(7)
+  createdAt  DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt  DateTime?               @map("deleted_at") @db.Timestamptz(3)
+  agency     Agency                  @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  properties PropertyTagAssignment[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, deletedAt, name])
+  @@map("property_tags")
+}
+
+model PropertyTagAssignment {
+  propertyId String      @map("property_id") @db.Uuid
+  tagId      String      @map("tag_id") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  property   Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag        PropertyTag @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([propertyId, tagId])
+  @@index([tagId])
+  @@map("property_tag_assignments")
+}
+
+model Client {
+  id                String                @id @default(uuid()) @db.Uuid
+  agencyId          String                @map("agency_id") @db.Uuid
+  assignedAgentId   String?               @map("assigned_agent_id") @db.Uuid
+  firstName         String                @map("first_name") @db.VarChar(100)
+  lastName          String                @map("last_name") @db.VarChar(100)
+  fullName          String                @map("full_name") @db.VarChar(201)
+  email             String?               @db.VarChar(320)
+  phone             String                @db.VarChar(30)
+  secondaryPhone    String?               @map("secondary_phone") @db.VarChar(30)
+  whatsapp          String?               @db.VarChar(30)
+  nationality       String?               @db.VarChar(100)
+  preferredLanguage String?               @map("preferred_language") @db.VarChar(50)
+  company           String?               @db.VarChar(160)
+  leadStatus        ClientLeadStatus      @default(NEW) @map("lead_status")
+  leadSource        ClientLeadSource?     @map("lead_source")
+  priority          ClientPriority        @default(MEDIUM)
+  rating            Int?
+  notes             String?               @db.Text
+  nextFollowUpAt    DateTime?             @map("next_follow_up_at") @db.Timestamptz(3)
+  lastContactAt     DateTime?             @map("last_contact_at") @db.Timestamptz(3)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  agency            Agency                @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignedAgent     User?                 @relation("ClientAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  roles             ClientRole[]
+  preferences       ClientPreference[]
+  tags              ClientTagAssignment[]
+  activities        ClientActivity[]
+  deals             Deal[]
+  viewings          Viewing[]
+  tasks             Task[]
+  notifications     Notification[]
+
+  @@index([agencyId, deletedAt, createdAt])
+  @@index([agencyId, assignedAgentId, deletedAt])
+  @@index([agencyId, leadStatus, deletedAt])
+  @@index([agencyId, leadSource, deletedAt])
+  @@index([agencyId, priority, deletedAt])
+  @@index([agencyId, fullName])
+  @@index([agencyId, phone])
+  @@index([agencyId, email])
+  @@index([assignedAgentId])
+  @@map("clients")
+}
+
+model ClientRole {
+  clientId  String         @map("client_id") @db.Uuid
+  role      ClientRoleType
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([clientId, role])
+  @@index([role, clientId])
+  @@map("client_roles")
+}
+
+model ClientPreference {
+  id           String       @id @default(uuid()) @db.Uuid
+  clientId     String       @map("client_id") @db.Uuid
+  propertyType PropertyType @map("property_type")
+  city         String       @db.VarChar(120)
+  district     String?      @db.VarChar(120)
+  bedrooms     Int?
+  bathrooms    Int?
+  minArea      Decimal?     @map("min_area") @db.Decimal(14, 2)
+  maxArea      Decimal?     @map("max_area") @db.Decimal(14, 2)
+  minBudget    Decimal?     @map("min_budget") @db.Decimal(18, 2)
+  maxBudget    Decimal?     @map("max_budget") @db.Decimal(18, 2)
+  currency     Currency
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(3)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([clientId, deletedAt])
+  @@index([propertyType, city])
+  @@map("client_preferences")
+}
+
+model ClientTag {
+  id          String                @id @default(uuid()) @db.Uuid
+  agencyId    String                @map("agency_id") @db.Uuid
+  name        String                @db.VarChar(120)
+  slug        String                @db.VarChar(120)
+  color       String?               @db.VarChar(7)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime?             @map("deleted_at") @db.Timestamptz(3)
+  agency      Agency                @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignments ClientTagAssignment[]
+
+  @@unique([agencyId, slug])
+  @@index([agencyId, deletedAt, name])
+  @@map("client_tags")
+}
+
+model ClientTagAssignment {
+  clientId  String    @map("client_id") @db.Uuid
+  tagId     String    @map("tag_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tag       ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([clientId, tagId])
+  @@index([tagId, clientId])
+  @@map("client_tag_assignments")
+}
+
+model ClientActivity {
+  id           String             @id @default(uuid()) @db.Uuid
+  clientId     String             @map("client_id") @db.Uuid
+  viewingId    String?            @unique @map("viewing_id") @db.Uuid
+  activityType ClientActivityType @map("activity_type")
+  description  String             @db.Text
+  metadata     Json?
+  createdById  String             @map("created_by_id") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  client       Client             @relation(fields: [clientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  viewing      Viewing?           @relation(fields: [viewingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy    User               @relation("ClientActivityCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([clientId, createdAt])
+  @@index([createdById])
+  @@index([activityType])
+  @@map("client_activities")
+}
+
+model Deal {
+  id                 String             @id @default(uuid()) @db.Uuid
+  agencyId           String             @map("agency_id") @db.Uuid
+  clientId           String             @map("client_id") @db.Uuid
+  propertyId         String             @map("property_id") @db.Uuid
+  assignedAgentId    String             @map("assigned_agent_id") @db.Uuid
+  title              String             @db.VarChar(180)
+  dealType           DealType           @map("deal_type")
+  stage              DealStage          @default(NEW_LEAD)
+  status             DealStatus         @default(OPEN)
+  askingPrice        Decimal?           @map("asking_price") @db.Decimal(18, 2)
+  offerAmount        Decimal?           @map("offer_amount") @db.Decimal(18, 2)
+  agreedAmount       Decimal?           @map("agreed_amount") @db.Decimal(18, 2)
+  currency           Currency
+  expectedCommission Decimal?           @map("expected_commission") @db.Decimal(18, 4)
+  commissionType     CommissionType?    @map("commission_type")
+  expectedCloseAt    DateTime?          @map("expected_close_at") @db.Timestamptz(3)
+  closedAt           DateTime?          @map("closed_at") @db.Timestamptz(3)
+  lostReason         String?            @map("lost_reason") @db.VarChar(1000)
+  description        String?            @db.Text
+  createdById        String             @map("created_by_id") @db.Uuid
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(3)
+  agency             Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  client             Client             @relation(fields: [clientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  property           Property           @relation(fields: [propertyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedAgent      User               @relation("DealAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator            User               @relation("DealCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  stageHistory       DealStageHistory[]
+  notes              DealNote[]
+  viewings           Viewing[]
+  activities         DealActivity[]
+  tasks              Task[]
+  notifications      Notification[]
+
+  @@index([agencyId, stage, deletedAt])
+  @@index([agencyId, status, deletedAt])
+  @@index([agencyId, assignedAgentId, deletedAt])
+  @@index([agencyId, expectedCloseAt, deletedAt])
+  @@index([agencyId, createdAt, deletedAt])
+  @@index([clientId])
+  @@index([propertyId])
+  @@index([assignedAgentId])
+  @@index([createdById])
+  @@map("deals")
+}
+
+model DealStageHistory {
+  id          String     @id @default(uuid()) @db.Uuid
+  dealId      String     @map("deal_id") @db.Uuid
+  fromStage   DealStage? @map("from_stage")
+  toStage     DealStage  @map("to_stage")
+  changedById String     @map("changed_by_id") @db.Uuid
+  note        String?    @db.VarChar(2000)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  deal        Deal       @relation(fields: [dealId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  changedBy   User       @relation("DealStageChanger", fields: [changedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([dealId, createdAt])
+  @@index([changedById])
+  @@map("deal_stage_history")
+}
+
+model DealNote {
+  id          String    @id @default(uuid()) @db.Uuid
+  dealId      String    @map("deal_id") @db.Uuid
+  body        String    @db.Text
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy   User      @relation("DealNoteCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([dealId, deletedAt, createdAt])
+  @@index([createdById])
+  @@map("deal_notes")
+}
+
+model Viewing {
+  id                 String          @id @default(uuid()) @db.Uuid
+  agencyId           String          @map("agency_id") @db.Uuid
+  propertyId         String          @map("property_id") @db.Uuid
+  clientId           String          @map("client_id") @db.Uuid
+  dealId             String?         @map("deal_id") @db.Uuid
+  assignedAgentId    String          @map("assigned_agent_id") @db.Uuid
+  title              String          @db.VarChar(180)
+  description        String?         @db.Text
+  status             ViewingStatus   @default(SCHEDULED)
+  startAt            DateTime        @map("start_at") @db.Timestamptz(3)
+  endAt              DateTime        @map("end_at") @db.Timestamptz(3)
+  timezone           String          @db.VarChar(100)
+  location           String?         @db.VarChar(500)
+  outcome            String?         @db.VarChar(2000)
+  cancellationReason String?         @map("cancellation_reason") @db.VarChar(1000)
+  feedback           String?         @db.Text
+  createdById        String          @map("created_by_id") @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?       @map("deleted_at") @db.Timestamptz(3)
+  agency             Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  property           Property        @relation(fields: [propertyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  deal               Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  assignedAgent      User            @relation("ViewingAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator            User            @relation("ViewingCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  clientActivity     ClientActivity?
+  dealActivity       DealActivity?
+  tasks              Task[]
+  notifications      Notification[]
+
+  @@index([agencyId, startAt, deletedAt])
+  @@index([agencyId, status, startAt, deletedAt])
+  @@index([agencyId, assignedAgentId, startAt, endAt, deletedAt])
+  @@index([clientId])
+  @@index([propertyId])
+  @@index([dealId])
+  @@index([assignedAgentId])
+  @@index([createdById])
+  @@map("viewings")
+}
+
+model DealActivity {
+  id           String           @id @default(uuid()) @db.Uuid
+  dealId       String           @map("deal_id") @db.Uuid
+  viewingId    String           @unique @map("viewing_id") @db.Uuid
+  activityType DealActivityType @map("activity_type")
+  description  String           @db.Text
+  createdById  String           @map("created_by_id") @db.Uuid
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  deal         Deal             @relation(fields: [dealId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  viewing      Viewing          @relation(fields: [viewingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdBy    User             @relation("DealActivityCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([dealId, createdAt])
+  @@index([createdById])
+  @@map("deal_activities")
+}
+
+model Task {
+  id             String         @id @default(uuid()) @db.Uuid
+  agencyId       String         @map("agency_id") @db.Uuid
+  assignedUserId String         @map("assigned_user_id") @db.Uuid
+  createdById    String         @map("created_by_id") @db.Uuid
+  clientId       String?        @map("client_id") @db.Uuid
+  propertyId     String?        @map("property_id") @db.Uuid
+  dealId         String?        @map("deal_id") @db.Uuid
+  viewingId      String?        @map("viewing_id") @db.Uuid
+  title          String         @db.VarChar(180)
+  description    String?        @db.Text
+  status         TaskStatus     @default(TODO)
+  priority       TaskPriority   @default(MEDIUM)
+  dueAt          DateTime?      @map("due_at") @db.Timestamptz(3)
+  completedAt    DateTime?      @map("completed_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(3)
+  agency         Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignedUser   User           @relation("TaskAssignee", fields: [assignedUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  creator        User           @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  client         Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  property       Property?      @relation(fields: [propertyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  deal           Deal?          @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  viewing        Viewing?       @relation(fields: [viewingId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  notifications  Notification[]
+
+  @@index([agencyId, assignedUserId, deletedAt])
+  @@index([agencyId, status, dueAt, deletedAt])
+  @@map("tasks")
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  agencyId    String           @map("agency_id") @db.Uuid
+  recipientId String           @map("recipient_id") @db.Uuid
+  clientId    String?          @map("client_id") @db.Uuid
+  propertyId  String?          @map("property_id") @db.Uuid
+  dealId      String?          @map("deal_id") @db.Uuid
+  viewingId   String?          @map("viewing_id") @db.Uuid
+  taskId      String?          @map("task_id") @db.Uuid
+  type        NotificationType @default(GENERAL)
+  title       String           @db.VarChar(180)
+  message     String?          @db.Text
+  readAt      DateTime?        @map("read_at") @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz(3)
+  agency      Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  client      Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  property    Property?        @relation(fields: [propertyId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  deal        Deal?            @relation(fields: [dealId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  viewing     Viewing?         @relation(fields: [viewingId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  task        Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([agencyId, recipientId, readAt, deletedAt])
+  @@index([agencyId, createdAt, deletedAt])
+  @@map("notifications")
 }
