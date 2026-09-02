@@ -46,6 +46,8 @@ const defaultFilters: PropertyFilters = {
 const filterClassName =
   "mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
 
+const PROPERTIES_LOAD_TIMEOUT_MS = 12000;
+
 export function PropertiesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<PropertyFilters>(defaultFilters);
@@ -82,8 +84,15 @@ export function PropertiesPage() {
 
   useEffect(() => {
     let active = true;
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Properties service timed out. Please refresh and try again.")),
+        PROPERTIES_LOAD_TIMEOUT_MS,
+      );
+    });
+
     setIsLoading(true);
-    listPropertiesFromDatabase()
+    Promise.race([listPropertiesFromDatabase(), timeout])
       .then((properties) => {
         if (!active) return;
         setPropertyList(properties);
@@ -96,6 +105,7 @@ export function PropertiesPage() {
       .finally(() => {
         if (active) setIsLoading(false);
       });
+
     return () => {
       active = false;
     };
