@@ -2,8 +2,7 @@ import { useCallback, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
 import { TurnstileWidget } from "../components/auth/TurnstileWidget";
-
-const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "";
+import { turnstileSiteKey } from "../config/turnstile";
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -21,15 +20,10 @@ export function LoginPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!turnstileSiteKey) {
-      setError("Security verification is not configured for this deployment.");
-      return;
-    }
     if (!captchaToken) {
       setError("Please complete the security verification.");
       return;
     }
-
     setBusy(true);
     try {
       await signIn(email.trim(), password, captchaToken);
@@ -48,7 +42,7 @@ export function LoginPage() {
     <form onSubmit={submit} className="space-y-4">
       <Field label="Email" type="email" value={email} onChange={setEmail} />
       <Field label="Password" type="password" value={password} onChange={setPassword} />
-      {turnstileSiteKey && <TurnstileWidget siteKey={turnstileSiteKey} resetKey={captchaResetKey} onToken={handleCaptchaToken} />}
+      <TurnstileWidget siteKey={turnstileSiteKey} resetKey={captchaResetKey} onToken={handleCaptchaToken} />
       {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
       <button disabled={busy || !captchaToken} className="w-full rounded-xl bg-slate-950 py-3 font-bold text-white disabled:opacity-50">
         {busy ? "Signing in…" : "Sign in"}
