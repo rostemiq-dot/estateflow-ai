@@ -6,9 +6,6 @@ const API_URL = configuredApiUrl || (import.meta.env.PROD ? "" : "http://localho
 function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
-  // Support both recommended VITE_API_URL=https://estateflow-ai-self.vercel.app
-  // and legacy VITE_API_URL=https://estateflow-ai-self.vercel.app/api without
-  // accidentally producing /api/api/... requests.
   if (API_URL.endsWith("/api") && normalizedPath === "/api") {
     return API_URL;
   }
@@ -42,6 +39,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!response.ok) {
     throw new Error("Request failed");
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;
