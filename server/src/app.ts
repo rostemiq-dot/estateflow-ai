@@ -35,7 +35,9 @@ export const createApp = () => {
       credentials: true,
     }),
   );
-  app.use(express.json());
+  // Keep JSON requests bounded. Property media is stored separately and must
+  // never be sent as base64 through the API.
+  app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
   app.use(pinoHttp({ logger }));
 
