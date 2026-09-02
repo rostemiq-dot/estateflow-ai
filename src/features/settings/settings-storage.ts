@@ -3,7 +3,10 @@ import {
   type AppSettings,
   type CustomOption,
 } from "./settings-data";
+
 export const SETTINGS_KEY = "estateflow-settings";
+export const SETTINGS_UPDATED_EVENT = "estateflow-settings-updated";
+
 export function loadSettings(): AppSettings {
   if (typeof window === "undefined") return structuredClone(defaultSettings);
   try {
@@ -25,16 +28,24 @@ export function loadSettings(): AppSettings {
     return structuredClone(defaultSettings);
   }
 }
+
+export function applySettingsTheme(v: Pick<AppSettings, "theme" | "density">) {
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.theme = v.theme;
+  document.documentElement.dataset.density = v.density;
+}
+
 export function saveSettings(v: AppSettings) {
   try {
     window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(v));
-    document.documentElement.dataset.theme = v.theme;
-    document.documentElement.dataset.density = v.density;
+    applySettingsTheme(v);
+    window.dispatchEvent(new CustomEvent(SETTINGS_UPDATED_EVENT, { detail: v }));
     return true;
   } catch {
     return false;
   }
 }
+
 export function migrateCustomList(
   values: readonly string[],
   existing: readonly CustomOption[],
@@ -51,6 +62,7 @@ export function migrateCustomList(
       })),
   ];
 }
+
 export function deleteCustomOption(
   options: readonly CustomOption[],
   id: string,
