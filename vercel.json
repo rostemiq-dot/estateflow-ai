@@ -15,10 +15,6 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api?__estateflow_path=/api/:path*"
-    },
-    {
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
