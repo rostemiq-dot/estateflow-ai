@@ -1,4 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+type VercelRequest = IncomingMessage;
+type VercelResponse = ServerResponse<IncomingMessage> & {
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+};
 
 export default function health(_req: VercelRequest, res: VercelResponse) {
   res.status(200).json({
