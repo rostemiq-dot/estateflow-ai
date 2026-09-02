@@ -34,14 +34,6 @@ const envSchema = z
       });
     }
 
-    if (!values.DIRECT_URL) {
-      context.addIssue({
-        code: "custom",
-        path: ["DIRECT_URL"],
-        message: "DIRECT_URL is required in production",
-      });
-    }
-
     if (!values.SUPABASE_URL) {
       context.addIssue({
         code: "custom",
@@ -69,5 +61,13 @@ if (!parsedEnv.success) {
   throw new Error(`Invalid environment configuration: ${issues}`);
 }
 
-export const env = parsedEnv.data;
-export type Env = z.infer<typeof envSchema>;
+const parsedValues = parsedEnv.data;
+
+// Railway can run the persistent API with DATABASE_URL alone. If a separate
+// DIRECT_URL is configured, keep using it; otherwise fall back to DATABASE_URL.
+export const env = {
+  ...parsedValues,
+  DIRECT_URL: parsedValues.DIRECT_URL ?? parsedValues.DATABASE_URL,
+};
+
+export type Env = typeof env;
