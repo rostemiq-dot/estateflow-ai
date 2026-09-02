@@ -28,7 +28,7 @@ export type ClientDetailRecord = Prisma.ClientGetPayload<{
 // Request validation remains owned by the Zod schemas; the service converts
 // validated ISO date strings into Date objects before reaching the repository.
 export type ClientWriteData = Prisma.ClientUncheckedCreateInput;
-export type ClientUpdateData = Prisma.ClientUpdateManyMutationInput;
+export type ClientUpdateData = Prisma.ClientUncheckedUpdateManyInput;
 
 export type ClientListOptions = ListClientsQuery & {
   agencyId: string;
