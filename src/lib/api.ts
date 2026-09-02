@@ -1,9 +1,12 @@
 import { supabase } from "./supabase";
 
-// Production APIs live on the same Vercel origin as the React app.
-// Never let an old VITE_API_URL send production requests to a stale backend.
-const configuredApiUrl = String(import.meta.env.VITE_API_URL ?? "").trim().replace(/\/$/, "");
-const API_URL = import.meta.env.PROD ? "" : configuredApiUrl || "http://localhost:3000";
+// The React app is deployed on Vercel, while the Express API runs on Railway.
+// VITE_API_URL is injected by Vercel at build time for production.
+const configuredApiUrl = String(import.meta.env.VITE_API_URL ?? "")
+  .trim()
+  .replace(/\/$/, "");
+
+const API_URL = configuredApiUrl || "http://localhost:3000";
 
 function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
