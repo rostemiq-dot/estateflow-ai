@@ -33,6 +33,9 @@ export function applySettingsTheme(v: Pick<AppSettings, "theme" | "density">) {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.theme = v.theme;
   document.documentElement.dataset.density = v.density;
+  document.documentElement.classList.toggle("dark", v.theme === "dark");
+  document.body.dataset.theme = v.theme;
+  document.body.dataset.density = v.density;
 }
 
 export function saveSettings(v: AppSettings) {

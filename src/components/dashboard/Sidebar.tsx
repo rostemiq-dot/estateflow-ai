@@ -49,7 +49,9 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">
             {agencyName}
           </p>
-          <h1 className="mt-2 text-2xl font-bold text-white">Real Estate OS</h1>
+          <h1 className="mt-2 truncate text-2xl font-bold text-white" title={agencyName}>
+            {agencyName}
+          </h1>
         </div>
         <button
           aria-label="Close navigation"

@@ -148,7 +148,8 @@ export function SettingsPage() {
       )}
       <section className="mt-5 rounded-2xl border bg-white p-5 sm:p-6">
         {tab === "Agency" && (
-          <Grid>
+          <div>
+            <Grid>
             <Field
               label="Agency name"
               value={agencyDraft.agencyName}
@@ -199,7 +200,20 @@ export function SettingsPage() {
               value={agencyDraft.defaultResponsibleAgent}
               set={(v) => patchAgency({ defaultResponsibleAgent: v })}
             />
-          </Grid>
+            </Grid>
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">
+                Save your agency identity to apply it across the workspace.
+              </p>
+              <button
+                type="button"
+                onClick={saveAgency}
+                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-slate-950 px-6 font-bold text-white transition hover:bg-slate-800"
+              >
+                Save agency settings
+              </button>
+            </div>
+          </div>
         )}
         {tab === "Localization" && (
           <Grid>
