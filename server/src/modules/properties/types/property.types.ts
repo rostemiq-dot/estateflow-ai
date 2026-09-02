@@ -5,19 +5,12 @@ import type {
   PropertyStatus,
   PropertyType,
 } from "@prisma/client";
-import type {
-  CreatePropertyInput,
-  ListPropertiesQuery,
-  UpdatePropertyInput,
-} from "../validators/property.validators.js";
+import type { ListPropertiesQuery } from "../validators/property.validators.js";
 
 export type PropertyWriteData = Omit<
-  CreatePropertyInput,
+  Prisma.PropertyUncheckedCreateInput,
   "price" | "latitude" | "longitude" | "areaSqm"
 > & {
-  agencyId: string;
-  createdById: string;
-  assignedAgentId: string | null;
   price: string;
   latitude?: string | null;
   longitude?: string | null;
@@ -25,7 +18,7 @@ export type PropertyWriteData = Omit<
 };
 
 export type PropertyUpdateData = Omit<
-  UpdatePropertyInput,
+  Prisma.PropertyUpdateManyMutationInput,
   "price" | "latitude" | "longitude" | "areaSqm"
 > & {
   price?: string;
