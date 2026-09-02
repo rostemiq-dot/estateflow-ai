@@ -94,7 +94,7 @@ export class PrismaClientRepository implements ClientRepository {
   ): Promise<ClientRecord | null> {
     const result = await this.database.client.updateMany({
       where: clientAccessWhere(agencyId, clientId, permittedAgentId),
-      data,
+      data: data as Prisma.ClientUpdateManyMutationInput,
     });
     if (result.count !== 1) return null;
     return this.database.client.findFirst({
