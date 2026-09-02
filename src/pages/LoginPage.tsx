@@ -1,11 +1,77 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
+import { TurnstileWidget } from "../components/auth/TurnstileWidget";
 
-export function LoginPage() { const { signIn } = useAuth(); const navigate = useNavigate(); const location = useLocation(); const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [error,setError]=useState(""); const [busy,setBusy]=useState(false);
-  async function submit(e: FormEvent) { e.preventDefault(); setError(""); setBusy(true); try { await signIn(email.trim(),password); const to = new URLSearchParams(location.search).get("returnTo"); navigate(to || "/", { replace:true }); } catch (caught) { setError(getLoginError(caught)); } finally { setBusy(false); } }
-  return <AuthLayout title="Welcome back" subtitle="Sign in to your EstateFlow workspace"><form onSubmit={submit} className="space-y-4"><Field label="Email" type="email" value={email} onChange={setEmail}/><Field label="Password" type="password" value={password} onChange={setPassword}/>{error&&<p role="alert" className="text-sm text-rose-600">{error}</p>}<button disabled={busy} className="w-full rounded-xl bg-slate-950 py-3 font-bold text-white disabled:opacity-50">{busy?"Signing in…":"Sign in"}</button><p className="text-center text-sm text-slate-500">New to EstateFlow? <Link className="font-bold text-amber-700" to="/register">Create an account</Link></p></form></AuthLayout>;
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "";
+
+export function LoginPage() {
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleCaptchaToken = useCallback((token: string | null) => setCaptchaToken(token), []);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!turnstileSiteKey) {
+      setError("Security verification is not configured for this deployment.");
+      return;
+    }
+    if (!captchaToken) {
+      setError("Please complete the security verification.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await signIn(email.trim(), password, captchaToken);
+      const to = new URLSearchParams(location.search).get("returnTo");
+      navigate(to || "/", { replace: true });
+    } catch (caught) {
+      setCaptchaToken(null);
+      setCaptchaResetKey((key) => key + 1);
+      setError(getLoginError(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <AuthLayout title="Welcome back" subtitle="Sign in to your EstateFlow workspace">
+    <form onSubmit={submit} className="space-y-4">
+      <Field label="Email" type="email" value={email} onChange={setEmail} />
+      <Field label="Password" type="password" value={password} onChange={setPassword} />
+      {turnstileSiteKey && <TurnstileWidget siteKey={turnstileSiteKey} resetKey={captchaResetKey} onToken={handleCaptchaToken} />}
+      {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
+      <button disabled={busy || !captchaToken} className="w-full rounded-xl bg-slate-950 py-3 font-bold text-white disabled:opacity-50">
+        {busy ? "Signing in…" : "Sign in"}
+      </button>
+      <p className="text-center text-sm text-slate-500">New to EstateFlow? <Link className="font-bold text-amber-700" to="/register">Create an account</Link></p>
+    </form>
+  </AuthLayout>;
 }
-function getLoginError(error: unknown) { const message = error instanceof Error ? error.message.toLowerCase() : ""; const code = typeof error === "object" && error !== null && "code" in error ? String(error.code).toLowerCase() : ""; if (code === "email_not_confirmed" || message.includes("email not confirmed")) return "Please confirm your email address before signing in."; if (message.includes("fetch") || message.includes("network")) return "Supabase is unavailable right now. Check your connection and try again."; if (message.includes("not configured")) return "Authentication is not configured for this deployment."; return "Invalid email or password. Please try again."; }
-function Field({label,type,value,onChange}:{label:string;type:string;value:string;onChange:(v:string)=>void}) { return <label className="block text-sm font-semibold text-slate-700">{label}<input required type={type} value={value} onChange={e=>onChange(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-amber-400" /></label>; }
-export function AuthLayout({title,subtitle,children}:{title:string;subtitle:string;children:React.ReactNode}) { return <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4"><section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"><p className="text-xs font-bold uppercase tracking-[.22em] text-amber-600">EstateFlow</p><h1 className="mt-8 text-3xl font-bold text-slate-950">{title}</h1><p className="mt-2 text-slate-500">{subtitle}</p><div className="mt-8">{children}</div></section></main>; }
+
+function getLoginError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  const code = typeof error === "object" && error !== null && "code" in error ? String(error.code).toLowerCase() : "";
+  if (message.includes("security verification") || message.includes("captcha")) return "Please complete the security verification and try again.";
+  if (code === "email_not_confirmed" || message.includes("email not confirmed")) return "Please confirm your email address before signing in.";
+  if (message.includes("fetch") || message.includes("network")) return "Supabase is unavailable right now. Check your connection and try again.";
+  if (message.includes("not configured")) return "Authentication is not configured for this deployment.";
+  return "Invalid email or password. Please try again.";
+}
+
+function Field({label,type,value,onChange}:{label:string;type:string;value:string;onChange:(v:string)=>void}) {
+  return <label className="block text-sm font-semibold text-slate-700">{label}<input required type={type} value={value} onChange={e=>onChange(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-amber-400" /></label>;
+}
+
+export function AuthLayout({title,subtitle,children}:{title:string;subtitle:string;children:React.ReactNode}) {
+  return <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4"><section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"><p className="text-xs font-bold uppercase tracking-[.22em] text-amber-600">EstateFlow</p><h1 className="mt-8 text-3xl font-bold text-slate-950">{title}</h1><p className="mt-2 text-slate-500">{subtitle}</p><div className="mt-8">{children}</div></section></main>;
+}
