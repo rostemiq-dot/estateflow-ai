@@ -7,8 +7,8 @@ type AuthContextValue = {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<boolean>;
+  signIn: (email: string, password: string, captchaToken: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, captchaToken: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 };
 
@@ -61,34 +61,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     loading,
 
-    signIn: async (email, password) => {
+    signIn: async (email, password, captchaToken) => {
+      if (!captchaToken) throw new Error("Please complete the security verification.");
+
       const { data, error } = await requireSupabase().auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken },
       });
 
       if (error) throw error;
 
-      // Set the session directly from the successful response. This prevents
-      // ProtectedRoute from seeing a stale null session during navigation
-      // before Supabase's auth-state listener fires.
       setSession(data.session);
       setLoading(false);
     },
 
-    signUp: async (email, password, fullName) => {
+    signUp: async (email, password, fullName, captchaToken) => {
+      if (!captchaToken) throw new Error("Please complete the security verification.");
+
       const { data, error } = await requireSupabase().auth.signUp({
         email,
         password,
         options: {
           data: { full_name: fullName },
+          captchaToken,
         },
       });
 
       if (error) throw error;
 
-      // With email confirmation enabled Supabase intentionally returns a null
-      // session. In that case the registration page must wait for confirmation.
       setSession(data.session);
       setLoading(false);
       return !data.session;
