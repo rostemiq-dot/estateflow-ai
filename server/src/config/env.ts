@@ -1,6 +1,13 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const postgresUrl = z
+  .string()
+  .regex(
+    /^postgres(?:ql)?:\/\//,
+    "Database URL must be a PostgreSQL connection URL",
+  );
+
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -11,38 +18,43 @@ const envSchema = z
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
       .default("info"),
-    DATABASE_URL: z
-      .string()
-      .regex(
-        /^postgres(?:ql)?:\/\//,
-        "DATABASE_URL must be a PostgreSQL connection URL",
-      )
-      .optional(),
-    JWT_ACCESS_SECRET: z.string().min(32).optional(),
-    JWT_REFRESH_SECRET: z.string().min(32).optional(),
+    DATABASE_URL: postgresUrl.optional(),
+    DIRECT_URL: postgresUrl.optional(),
     SUPABASE_URL: z.url().optional(),
     SUPABASE_ANON_KEY: z.string().min(1).optional(),
   })
   .superRefine((values, context) => {
-    if (values.NODE_ENV !== "production") {
-      return;
-    }
+    if (values.NODE_ENV !== "production") return;
 
-    const usesSupabaseAuth = Boolean(values.SUPABASE_URL && values.SUPABASE_ANON_KEY);
-
-    if (!usesSupabaseAuth && !values.JWT_ACCESS_SECRET) {
+    if (!values.DATABASE_URL) {
       context.addIssue({
         code: "custom",
-        path: ["JWT_ACCESS_SECRET"],
-        message: "JWT_ACCESS_SECRET is required when Supabase Auth is not configured",
+        path: ["DATABASE_URL"],
+        message: "DATABASE_URL is required in production",
       });
     }
 
-    if (!usesSupabaseAuth && !values.JWT_REFRESH_SECRET) {
+    if (!values.DIRECT_URL) {
       context.addIssue({
         code: "custom",
-        path: ["JWT_REFRESH_SECRET"],
-        message: "JWT_REFRESH_SECRET is required when Supabase Auth is not configured",
+        path: ["DIRECT_URL"],
+        message: "DIRECT_URL is required in production",
+      });
+    }
+
+    if (!values.SUPABASE_URL) {
+      context.addIssue({
+        code: "custom",
+        path: ["SUPABASE_URL"],
+        message: "SUPABASE_URL is required in production",
+      });
+    }
+
+    if (!values.SUPABASE_ANON_KEY) {
+      context.addIssue({
+        code: "custom",
+        path: ["SUPABASE_ANON_KEY"],
+        message: "SUPABASE_ANON_KEY is required in production",
       });
     }
   });
@@ -57,15 +69,5 @@ if (!parsedEnv.success) {
   throw new Error(`Invalid environment configuration: ${issues}`);
 }
 
-export const env = {
-  ...parsedEnv.data,
-  JWT_ACCESS_SECRET:
-    parsedEnv.data.JWT_ACCESS_SECRET ??
-    "development-access-secret-change-before-production",
-  JWT_REFRESH_SECRET:
-    parsedEnv.data.JWT_REFRESH_SECRET ??
-    "development-refresh-secret-change-before-production",
-  SUPABASE_URL: parsedEnv.data.SUPABASE_URL,
-  SUPABASE_ANON_KEY: parsedEnv.data.SUPABASE_ANON_KEY,
-};
+export const env = parsedEnv.data;
 export type Env = z.infer<typeof envSchema>;
