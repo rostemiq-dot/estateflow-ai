@@ -8,16 +8,19 @@ import type { AuthRepository } from "../services/auth.repository.js";
 export const createAuthenticate = (
   repository: AuthRepository = new PrismaAuthRepository(),
 ): RequestHandler => {
-  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-    throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required for authentication");
-  }
-
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const supabase =
+    env.SUPABASE_URL && env.SUPABASE_ANON_KEY
+      ? createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        })
+      : null;
 
   return async (req, _res, next) => {
     try {
+      if (!supabase) {
+        throw new AppError("Authentication service is not configured", 503);
+      }
+
       const authorization = req.get("authorization");
       const match = authorization?.match(/^Bearer ([^\s]+)$/);
 
