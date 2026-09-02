@@ -1,4 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
+import {
+  applySettingsTheme,
+  loadSettings,
+  SETTINGS_UPDATED_EVENT,
+} from "../../features/settings/settings-storage";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -8,6 +13,23 @@ type DashboardShellProps = {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+
+  useEffect(() => {
+    const syncWorkspaceSettings = () => {
+      const settings = loadSettings();
+      applySettingsTheme(settings);
+      const agencyName = settings.agencyName.trim() || "EstateFlow";
+      document.title = `${agencyName} | Real Estate OS`;
+    };
+
+    syncWorkspaceSettings();
+    window.addEventListener(SETTINGS_UPDATED_EVENT, syncWorkspaceSettings);
+    window.addEventListener("storage", syncWorkspaceSettings);
+    return () => {
+      window.removeEventListener(SETTINGS_UPDATED_EVENT, syncWorkspaceSettings);
+      window.removeEventListener("storage", syncWorkspaceSettings);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isNavigationOpen) return;
