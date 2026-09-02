@@ -100,9 +100,9 @@ const toCreateData = (
   return {
     ...rest,
     price: new Prisma.Decimal(price),
-    latitude: latitude == null ? latitude : new Prisma.Decimal(latitude),
-    longitude: longitude == null ? longitude : new Prisma.Decimal(longitude),
-    areaSqm: areaSqm == null ? areaSqm : new Prisma.Decimal(areaSqm),
+    latitude: latitude == null ? null : new Prisma.Decimal(latitude),
+    longitude: longitude == null ? null : new Prisma.Decimal(longitude),
+    areaSqm: areaSqm == null ? null : new Prisma.Decimal(areaSqm),
   };
 };
 
