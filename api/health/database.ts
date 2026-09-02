@@ -1,5 +1,11 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { PrismaClient } from "@prisma/client";
+
+type VercelRequest = IncomingMessage;
+type VercelResponse = ServerResponse<IncomingMessage> & {
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+};
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
