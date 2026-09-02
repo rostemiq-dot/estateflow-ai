@@ -1,17 +1,21 @@
+import { createClient } from "@supabase/supabase-js";
 import type { RequestHandler } from "express";
 import { AppError } from "../../../errors/app-error.js";
-import type { AuthRepository } from "../services/auth.repository.js";
-import type { TokenService } from "../services/jwt.service.js";
-import { createClient } from "@supabase/supabase-js";
 import { env } from "../../../config/env.js";
+import { PrismaAuthRepository } from "../services/prisma-auth.repository.js";
+import type { AuthRepository } from "../services/auth.repository.js";
 
 export const createAuthenticate = (
-  tokens: TokenService,
-  repository: AuthRepository,
+  repository: AuthRepository = new PrismaAuthRepository(),
 ): RequestHandler => {
-  const supabase = env.SUPABASE_URL && env.SUPABASE_ANON_KEY
-    ? createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
-    : null;
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required for authentication");
+  }
+
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
   return async (req, _res, next) => {
     try {
       const authorization = req.get("authorization");
@@ -21,22 +25,20 @@ export const createAuthenticate = (
         throw new AppError("Authentication required", 401);
       }
 
-      if (supabase) {
-        const { data, error } = await supabase.auth.getUser(match[1]);
-        if (error || !data.user?.email) throw new AppError("Authentication required", 401);
-        const user = await repository.findUserByEmail(data.user.email) ??
-          (repository.provisionSupabaseUser ? await repository.provisionSupabaseUser(data.user.email, String(data.user.user_metadata?.agency_name ?? "My Agency")) : null);
-        if (!user || !user.isActive) throw new AppError("Application account is not provisioned", 403);
-        req.user = { id: user.id, email: user.email, agencyId: user.agencyId, role: user.role };
-        next();
-        return;
+      const { data, error } = await supabase.auth.getUser(match[1]);
+      if (error || !data.user?.email) {
+        throw new AppError("Authentication required", 401);
       }
 
-      const payload = tokens.verifyAccessToken(match[1]);
-      const user = await repository.findUserById(payload.sub);
+      const user =
+        (await repository.findUserByEmail(data.user.email)) ??
+        (await repository.provisionSupabaseUser(
+          data.user.email,
+          String(data.user.user_metadata?.agency_name ?? "My Agency"),
+        ));
 
-      if (!user || !user.isActive || user.agencyId !== payload.agencyId) {
-        throw new AppError("Authentication required", 401);
+      if (!user || !user.isActive) {
+        throw new AppError("Application account is not provisioned", 403);
       }
 
       req.user = {
