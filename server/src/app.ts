@@ -22,6 +22,11 @@ import {
 import { databaseHealthRouter } from "./routes/database-health.routes.js";
 import { healthRouter } from "./routes/health.routes.js";
 
+const allowedOrigins = new Set([
+  env.CLIENT_URL,
+  "https://estateflow-ai-self.vercel.app",
+]);
+
 export const createApp = () => {
   const app = express();
 
@@ -29,7 +34,15 @@ export const createApp = () => {
   app.use(helmet());
   app.use(
     cors({
-      origin: env.CLIENT_URL,
+      origin: (origin, callback) => {
+        // Allow non-browser requests (health checks, curl, server-to-server).
+        if (!origin || allowedOrigins.has(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error("CORS origin not allowed"));
+      },
       credentials: true,
     }),
   );
