@@ -1,13 +1,12 @@
-import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
-import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, X, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { NavLink } from "react-router-dom";
+import { useNavigate, NavLink } from "react-router-dom";
 import { dashboardNav } from "../../features/dashboard/dashboard-nav";
 import {
   loadSettings,
   saveSettings,
+  SETTINGS_UPDATED_EVENT,
 } from "../../features/settings/settings-storage";
 
 type SidebarProps = {
@@ -18,30 +17,40 @@ type SidebarProps = {
 export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(
-    () => loadSettings().sidebarCollapsed,
-  );
+  const [settings, setSettings] = useState(loadSettings);
+  const collapsed = settings.sidebarCollapsed;
+
+  useEffect(() => {
+    const sync = () => setSettings(loadSettings());
+    window.addEventListener(SETTINGS_UPDATED_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(SETTINGS_UPDATED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
   function toggleCollapsed() {
     const next = !collapsed;
-    setCollapsed(next);
-    const settings = loadSettings();
-    saveSettings({ ...settings, sidebarCollapsed: next });
+    const updated = { ...settings, sidebarCollapsed: next };
+    setSettings(updated);
+    saveSettings(updated);
   }
+
+  const agencyName = settings.agencyName.trim() || "EstateFlow";
+
   return (
     <aside
       aria-label="Main navigation"
-      className={`fixed inset-y-0 left-0 z-40 flex h-screen w-72 shrink-0 flex-col overflow-hidden border-r border-slate-800 bg-slate-950 px-5 py-6 shadow-2xl transition-[transform,width] duration-200 lg:sticky lg:top-0 lg:translate-x-0 lg:shadow-none ${collapsed ? "lg:w-20 lg:px-3" : "lg:w-72"} ${
-        isMobileOpen ? "translate-x-0" : "-translate-x-full"
-      }`}
+      className={`fixed inset-y-0 left-0 z-40 flex h-screen w-72 shrink-0 flex-col overflow-hidden border-r border-slate-800 bg-slate-950 px-5 py-6 shadow-2xl transition-[transform,width] duration-200 lg:sticky lg:top-0 lg:translate-x-0 lg:shadow-none ${collapsed ? "lg:w-20 lg:px-3" : "lg:w-72"} ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}`}
     >
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className={collapsed ? "lg:hidden" : ""}>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">
-            EstateFlow
+            {agencyName}
           </p>
           <h1 className="mt-2 text-2xl font-bold text-white">Real Estate OS</h1>
         </div>
-
         <button
           aria-label="Close navigation"
           type="button"
@@ -69,7 +78,6 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
             >
               {group.label}
             </p>
-
             <div className="space-y-1">
               {group.items.map((item) => (
                 <NavLink
@@ -87,9 +95,7 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
                     ].join(" ")
                   }
                 >
-                  <span className={collapsed ? "lg:sr-only" : ""}>
-                    {item.label}
-                  </span>
+                  <span className={collapsed ? "lg:sr-only" : ""}>{item.label}</span>
                 </NavLink>
               ))}
             </div>
@@ -100,12 +106,19 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
       <div
         className={`mt-5 shrink-0 rounded-2xl border border-slate-800 bg-slate-900 p-4 ${collapsed ? "lg:hidden" : ""}`}
       >
-        <p className="text-sm font-semibold text-white">EstateFlow AI</p>
+        <p className="text-sm font-semibold text-white">{agencyName}</p>
         <p className="mt-1 text-xs leading-5 text-slate-400">
           Your smart workspace for properties, clients, and deals.
         </p>
       </div>
-      <button type="button" onClick={async () => { await signOut(); navigate("/login", { replace: true }); }} className="mt-4 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-300 hover:bg-slate-800 hover:text-white">
+      <button
+        type="button"
+        onClick={async () => {
+          await signOut();
+          navigate("/login", { replace: true });
+        }}
+        className="mt-4 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+      >
         <LogOut size={18} /> Sign out
       </button>
     </aside>
