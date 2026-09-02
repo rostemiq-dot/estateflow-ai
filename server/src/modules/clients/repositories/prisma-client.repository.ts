@@ -53,8 +53,8 @@ const clientDetailInclude = {
 export class PrismaClientRepository implements ClientRepository {
   constructor(private readonly database: ClientDatabase = prisma) {}
 
-  async create(data: ClientWriteData): Promise<ClientRecord> {
-    return await this.database.client.create({
+  create(data: ClientWriteData): Promise<ClientRecord> {
+    return this.database.client.create({
       data,
       include: clientInclude,
     });
@@ -92,63 +92,64 @@ export class PrismaClientRepository implements ClientRepository {
     data: ClientUpdateData,
     permittedAgentId?: string,
   ): Promise<ClientRecord | null> {
-    const existing = await this.database.client.findFirst({
+    const result = await this.database.client.updateMany({
       where: clientAccessWhere(agencyId, clientId, permittedAgentId),
-      select: { id: true },
+      data,
     });
-    if (!existing) return null;
-
-    await this.database.client.update({ where: { id: existing.id }, data });
+    if (result.count !== 1) return null;
     return this.database.client.findFirst({
-      where: { id: existing.id },
+      where: clientAccessWhere(agencyId, clientId, permittedAgentId),
       include: clientInclude,
     });
   }
 
-  async softDelete(agencyId: string, clientId: string, deletedAt: Date): Promise<boolean> {
+  async softDelete(agencyId: string, clientId: string, deletedAt: Date) {
     const result = await this.database.client.updateMany({
       where: clientAccessWhere(agencyId, clientId),
       data: { deletedAt },
     });
-    return result.count > 0;
+    return result.count === 1;
+  }
+
+  async isActiveUserInAgency(userId: string, agencyId: string) {
+    return (
+      (await this.database.user.count({
+        where: { id: userId, agencyId, isActive: true },
+      })) === 1
+    );
   }
 
   async assignAgent(
     agencyId: string,
     clientId: string,
     assignedAgentId: string | null,
-  ): Promise<ClientRecord | null> {
-    const result = await this.database.client.updateMany({
-      where: clientAccessWhere(agencyId, clientId),
-      data: { assignedAgentId },
-    });
-    if (!result.count) return null;
-    return this.database.client.findFirst({
-      where: { id: clientId },
-      include: clientInclude,
-    });
+  ) {
+    return this.update(agencyId, clientId, { assignedAgentId });
   }
 
-  async isActiveUserInAgency(userId: string, agencyId: string): Promise<boolean> {
-    const user = await this.database.user.findFirst({
-      where: { id: userId, agencyId, isActive: true },
-      select: { id: true },
-    });
-    return user !== null;
-  }
-
-  listRoles(agencyId: string, clientId: string, permittedAgentId?: string) {
+  async listRoles(
+    agencyId: string,
+    clientId: string,
+    permittedAgentId?: string,
+  ) {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     return this.database.clientRole.findMany({
-      where: { client: clientAccessWhere(agencyId, clientId, permittedAgentId) },
+      where: { clientId },
+      orderBy: { createdAt: "asc" },
     });
   }
 
-  async addRole(agencyId: string, clientId: string, role: ClientRoleType, permittedAgentId?: string) {
-    const client = await this.database.client.findFirst({
-      where: clientAccessWhere(agencyId, clientId, permittedAgentId),
-      select: { id: true },
-    });
-    if (!client) return null;
+  async addRole(
+    agencyId: string,
+    clientId: string,
+    role: ClientRoleType,
+    permittedAgentId?: string,
+  ): Promise<ClientRole | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     return this.database.clientRole.upsert({
       where: { clientId_role: { clientId, role } },
       create: { clientId, role },
@@ -156,117 +157,284 @@ export class PrismaClientRepository implements ClientRepository {
     });
   }
 
-  async removeRole(agencyId: string, clientId: string, role: ClientRoleType, permittedAgentId?: string) {
-    const client = await this.database.client.findFirst({
-      where: clientAccessWhere(agencyId, clientId, permittedAgentId),
-      select: { id: true },
+  async removeRole(
+    agencyId: string,
+    clientId: string,
+    role: ClientRoleType,
+    permittedAgentId?: string,
+  ): Promise<boolean | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
+    const result = await this.database.clientRole.deleteMany({
+      where: { clientId, role },
     });
-    if (!client) return null;
-    const result = await this.database.clientRole.deleteMany({ where: { clientId, role } });
-    return result.count > 0;
+    return result.count === 1;
   }
 
-  listPreferences(agencyId: string, clientId: string, permittedAgentId?: string) {
+  async listPreferences(
+    agencyId: string,
+    clientId: string,
+    permittedAgentId?: string,
+  ) {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     return this.database.clientPreference.findMany({
-      where: { client: clientAccessWhere(agencyId, clientId, permittedAgentId), deletedAt: null },
+      where: { clientId, deletedAt: null },
       orderBy: { createdAt: "asc" },
     });
   }
 
-  async createPreference(agencyId: string, clientId: string, input: CreatePreferenceInput, permittedAgentId?: string) {
-    const client = await this.database.client.findFirst({
-      where: clientAccessWhere(agencyId, clientId, permittedAgentId),
-      select: { id: true },
-    });
-    if (!client) return null;
-    const { minArea, maxArea, minBudget, maxBudget, ...rest } = input;
+  async createPreference(
+    agencyId: string,
+    clientId: string,
+    input: CreatePreferenceInput,
+    permittedAgentId?: string,
+  ): Promise<ClientPreference | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     return this.database.clientPreference.create({
       data: {
-        ...rest,
+        ...preferenceData(input),
         clientId,
-        minArea: minArea == null ? minArea : new Prisma.Decimal(minArea),
-        maxArea: maxArea == null ? maxArea : new Prisma.Decimal(maxArea),
-        minBudget: minBudget == null ? minBudget : new Prisma.Decimal(minBudget),
-        maxBudget: maxBudget == null ? maxBudget : new Prisma.Decimal(maxBudget),
-      },
+      } as Prisma.ClientPreferenceUncheckedCreateInput,
     });
   }
 
-  async updatePreference(agencyId: string, clientId: string, preferenceId: string, input: UpdatePreferenceInput, permittedAgentId?: string) {
-    const preference = await this.database.clientPreference.findFirst({
-      where: { id: preferenceId, client: clientAccessWhere(agencyId, clientId, permittedAgentId), deletedAt: null },
-    });
-    if (!preference) return null;
-    const { minArea, maxArea, minBudget, maxBudget, ...rest } = input;
-    return this.database.clientPreference.update({
-      where: { id: preferenceId },
-      data: {
-        ...rest,
-        ...(minArea !== undefined ? { minArea: minArea === null ? null : new Prisma.Decimal(minArea) } : {}),
-        ...(maxArea !== undefined ? { maxArea: maxArea === null ? null : new Prisma.Decimal(maxArea) } : {}),
-        ...(minBudget !== undefined ? { minBudget: minBudget === null ? null : new Prisma.Decimal(minBudget) } : {}),
-        ...(maxBudget !== undefined ? { maxBudget: maxBudget === null ? null : new Prisma.Decimal(maxBudget) } : {}),
-      },
-    });
-  }
-
-  async deletePreference(agencyId: string, clientId: string, preferenceId: string, deletedAt: Date, permittedAgentId?: string) {
+  async updatePreference(
+    agencyId: string,
+    clientId: string,
+    preferenceId: string,
+    input: UpdatePreferenceInput,
+    permittedAgentId?: string,
+  ): Promise<ClientPreference | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     const result = await this.database.clientPreference.updateMany({
-      where: { id: preferenceId, client: clientAccessWhere(agencyId, clientId, permittedAgentId), deletedAt: null },
+      where: { id: preferenceId, clientId, deletedAt: null },
+      data: preferenceData(input),
+    });
+    return result.count === 1
+      ? this.database.clientPreference.findFirst({
+          where: { id: preferenceId, clientId, deletedAt: null },
+        })
+      : null;
+  }
+
+  async softDeletePreference(
+    agencyId: string,
+    clientId: string,
+    preferenceId: string,
+    deletedAt: Date,
+    permittedAgentId?: string,
+  ): Promise<boolean | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
+    const result = await this.database.clientPreference.updateMany({
+      where: { id: preferenceId, clientId, deletedAt: null },
       data: { deletedAt },
     });
-    return result.count > 0;
+    return result.count === 1;
   }
 
-  listActivities(agencyId: string, clientId: string, permittedAgentId?: string) {
+  async listActivities(
+    agencyId: string,
+    clientId: string,
+    permittedAgentId?: string,
+  ): Promise<ClientActivity[] | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     return this.database.clientActivity.findMany({
-      where: { client: clientAccessWhere(agencyId, clientId, permittedAgentId) },
+      where: { clientId },
       orderBy: { createdAt: "desc" },
     });
   }
 
-  async createActivity(agencyId: string, clientId: string, actorId: string, input: CreateActivityInput, permittedAgentId?: string) {
-    const client = await this.database.client.findFirst({
-      where: clientAccessWhere(agencyId, clientId, permittedAgentId),
-      select: { id: true },
-    });
-    if (!client) return null;
+  async createActivity(
+    agencyId: string,
+    clientId: string,
+    createdById: string,
+    input: CreateActivityInput,
+    permittedAgentId?: string,
+  ): Promise<ClientActivity | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
     return this.database.clientActivity.create({
-      data: { ...input, clientId, createdById: actorId },
+      data: {
+        ...input,
+        metadata: input.metadata ?? undefined,
+        clientId,
+        createdById,
+      },
     });
   }
 
-  listTags(agencyId: string) {
-    return this.database.clientTag.findMany({ where: { agencyId, deletedAt: null }, orderBy: { name: "asc" } });
+  listTags(agencyId: string): Promise<ClientTag[]> {
+    return this.database.clientTag.findMany({
+      where: { agencyId, deletedAt: null },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  findTagById(agencyId: string, tagId: string): Promise<ClientTag | null> {
+    return this.database.clientTag.findFirst({
+      where: { id: tagId, agencyId, deletedAt: null },
+    });
   }
 
   async createTag(agencyId: string, input: CreateClientTagInput) {
     try {
-      return await this.database.clientTag.create({ data: { ...input, agencyId } });
+      return await this.database.clientTag.create({
+        data: { ...input, agencyId },
+      });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new DuplicateClientTagSlugError();
-      }
-      throw error;
+      return mapTagError(error);
     }
   }
 
-  async updateTag(agencyId: string, tagId: string, input: UpdateClientTagInput) {
+  async updateTag(
+    agencyId: string,
+    tagId: string,
+    input: UpdateClientTagInput,
+  ) {
     try {
-      return await this.database.clientTag.updateMany({ where: { id: tagId, agencyId, deletedAt: null }, data: input });
+      const result = await this.database.clientTag.updateMany({
+        where: { id: tagId, agencyId, deletedAt: null },
+        data: input,
+      });
+      return result.count === 1 ? this.findTagById(agencyId, tagId) : null;
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new DuplicateClientTagSlugError();
-      }
-      throw error;
+      return mapTagError(error);
     }
   }
 
-  async deleteTag(agencyId: string, tagId: string, deletedAt: Date) {
-    const result = await this.database.clientTag.updateMany({ where: { id: tagId, agencyId, deletedAt: null }, data: { deletedAt } });
-    return result.count > 0;
+  async softDeleteTag(agencyId: string, tagId: string, deletedAt: Date) {
+    const result = await this.database.clientTag.updateMany({
+      where: { id: tagId, agencyId, deletedAt: null },
+      data: { deletedAt },
+    });
+    return result.count === 1;
+  }
+
+  async assignTag(
+    agencyId: string,
+    clientId: string,
+    tagId: string,
+    permittedAgentId?: string,
+  ): Promise<boolean | null> {
+    if (
+      !(await this.hasClient(agencyId, clientId, permittedAgentId)) ||
+      !(await this.findTagById(agencyId, tagId))
+    ) {
+      return null;
+    }
+    await this.database.clientTagAssignment.upsert({
+      where: { clientId_tagId: { clientId, tagId } },
+      create: { clientId, tagId },
+      update: {},
+    });
+    return true;
+  }
+
+  async removeTag(
+    agencyId: string,
+    clientId: string,
+    tagId: string,
+    permittedAgentId?: string,
+  ): Promise<boolean | null> {
+    if (!(await this.hasClient(agencyId, clientId, permittedAgentId))) {
+      return null;
+    }
+    const result = await this.database.clientTagAssignment.deleteMany({
+      where: { clientId, tagId, tag: { agencyId, deletedAt: null } },
+    });
+    return result.count === 1;
+  }
+
+  private async hasClient(
+    agencyId: string,
+    clientId: string,
+    permittedAgentId?: string,
+  ) {
+    return (
+      (await this.database.client.count({
+        where: clientAccessWhere(agencyId, clientId, permittedAgentId),
+      })) === 1
+    );
   }
 }
+
+export const buildClientWhere = (
+  options: ClientListOptions,
+): Prisma.ClientWhereInput => {
+  const and: Prisma.ClientWhereInput[] = [];
+  if (options.search) {
+    and.push({
+      OR: ["fullName", "phone", "secondaryPhone", "whatsapp", "email"].map(
+        (field) => ({
+          [field]: {
+            contains: options.search,
+            mode: Prisma.QueryMode.insensitive,
+          },
+        }),
+      ),
+    });
+  }
+  if (options.phone) {
+    and.push({
+      OR: ["phone", "secondaryPhone", "whatsapp"].map((field) => ({
+        [field]: { contains: options.phone },
+      })),
+    });
+  }
+  return {
+    agencyId: options.agencyId,
+    deletedAt: null,
+    ...(options.permittedAgentId
+      ? { assignedAgentId: options.permittedAgentId }
+      : {}),
+    ...(and.length ? { AND: and } : {}),
+    ...(options.name
+      ? {
+          fullName: {
+            contains: options.name,
+            mode: Prisma.QueryMode.insensitive,
+          },
+        }
+      : {}),
+    ...(options.email
+      ? {
+          email: {
+            contains: options.email,
+            mode: Prisma.QueryMode.insensitive,
+          },
+        }
+      : {}),
+    ...(options.role ? { roles: { some: { role: options.role } } } : {}),
+    ...(options.leadStatus ? { leadStatus: options.leadStatus } : {}),
+    ...(options.leadSource ? { leadSource: options.leadSource } : {}),
+    ...(options.assignedAgentId
+      ? { assignedAgentId: options.assignedAgentId }
+      : {}),
+    ...(options.tagId
+      ? {
+          tags: {
+            some: {
+              tagId: options.tagId,
+              tag: { agencyId: options.agencyId, deletedAt: null },
+            },
+          },
+        }
+      : {}),
+    ...(options.priority ? { priority: options.priority } : {}),
+  };
+};
 
 const clientAccessWhere = (
   agencyId: string,
@@ -279,28 +447,42 @@ const clientAccessWhere = (
   ...(permittedAgentId ? { assignedAgentId: permittedAgentId } : {}),
 });
 
-const buildClientWhere = (options: ClientListOptions): Prisma.ClientWhereInput => ({
-  agencyId: options.agencyId,
-  deletedAt: null,
-  ...(options.permittedAgentId ? { assignedAgentId: options.permittedAgentId } : {}),
-  ...(options.assignedAgentId ? { assignedAgentId: options.assignedAgentId } : {}),
-  ...(options.search
+const preferenceData = (
+  input: CreatePreferenceInput | UpdatePreferenceInput,
+): Prisma.ClientPreferenceUncheckedUpdateManyInput => ({
+  ...input,
+  ...(input.minArea !== undefined
     ? {
-        OR: [
-          { firstName: { contains: options.search, mode: "insensitive" } },
-          { lastName: { contains: options.search, mode: "insensitive" } },
-          { fullName: { contains: options.search, mode: "insensitive" } },
-          { email: { contains: options.search, mode: "insensitive" } },
-          { phone: { contains: options.search, mode: "insensitive" } },
-        ],
+        minArea:
+          input.minArea === null ? null : new Prisma.Decimal(input.minArea),
       }
     : {}),
-  ...(options.name ? { fullName: { contains: options.name, mode: "insensitive" } } : {}),
-  ...(options.phone ? { phone: { contains: options.phone } } : {}),
-  ...(options.email ? { email: { contains: options.email, mode: "insensitive" } } : {}),
-  ...(options.role ? { roles: { some: { role: options.role } } } : {}),
-  ...(options.leadStatus ? { leadStatus: options.leadStatus } : {}),
-  ...(options.leadSource ? { leadSource: options.leadSource } : {}),
-  ...(options.priority ? { priority: options.priority } : {}),
-  ...(options.tagId ? { tags: { some: { tagId: options.tagId } } } : {}),
+  ...(input.maxArea !== undefined
+    ? {
+        maxArea:
+          input.maxArea === null ? null : new Prisma.Decimal(input.maxArea),
+      }
+    : {}),
+  ...(input.minBudget !== undefined
+    ? {
+        minBudget:
+          input.minBudget === null ? null : new Prisma.Decimal(input.minBudget),
+      }
+    : {}),
+  ...(input.maxBudget !== undefined
+    ? {
+        maxBudget:
+          input.maxBudget === null ? null : new Prisma.Decimal(input.maxBudget),
+      }
+    : {}),
 });
+
+const mapTagError = (error: unknown): never => {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    throw new DuplicateClientTagSlugError();
+  }
+  throw error;
+};
