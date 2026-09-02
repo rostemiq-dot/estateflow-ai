@@ -2,8 +2,6 @@ import { UserRole } from "@prisma/client";
 import { Router, type RequestHandler } from "express";
 import { createAuthenticate } from "../../auth/middleware/authenticate.js";
 import { authorize } from "../../auth/middleware/authorize.js";
-import { JwtTokenService } from "../../auth/services/jwt.service.js";
-import { PrismaAuthRepository } from "../../auth/services/prisma-auth.repository.js";
 import { PropertyController } from "../controllers/property.controller.js";
 import { validateRequest } from "../middleware/validate-request.js";
 import { PrismaPropertyRepository } from "../repositories/prisma-property.repository.js";
@@ -63,10 +61,9 @@ export const createPropertyRouter = ({
   return router;
 };
 
-const authRepository = new PrismaAuthRepository();
 const propertyService = new PropertyService(new PrismaPropertyRepository());
 
 export const propertyRouter = createPropertyRouter({
   propertyService,
-  authenticate: createAuthenticate(new JwtTokenService(), authRepository),
+  authenticate: createAuthenticate(),
 });
