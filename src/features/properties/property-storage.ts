@@ -3,7 +3,6 @@ import {
   PROPERTY_PURPOSES,
   PROPERTY_STATUSES,
   PROPERTY_TYPES,
-  properties,
   type Property,
   type PropertyCurrency,
   type PropertyPurpose,
@@ -57,14 +56,6 @@ function getEnumValue<T extends string>(
   return typeof value === "string" && options.includes(value as T)
     ? (value as T)
     : fallback;
-}
-
-function cloneDemoProperties() {
-  return properties.map((property) => ({
-    ...property,
-    features: property.features ? [...property.features] : [],
-    images: property.images ? [...property.images] : [],
-  }));
 }
 
 export function normalizeProperty(value: unknown, index = 0): Property | null {
