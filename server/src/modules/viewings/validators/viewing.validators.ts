@@ -21,7 +21,10 @@ const viewingFields = {
   propertyId: z.uuid(),
   clientId: z.uuid(),
   dealId: z.uuid().nullable().optional(),
-  assignedAgentId: z.uuid(),
+  // If omitted, the API assigns the authenticated application user.
+  // The frontend Supabase auth UUID is intentionally not used here because
+  // application users have their own Prisma UUIDs.
+  assignedAgentId: z.uuid().optional(),
   title: z.string().trim().min(2).max(180),
   description: nullableText(20_000),
   startAt: date,
