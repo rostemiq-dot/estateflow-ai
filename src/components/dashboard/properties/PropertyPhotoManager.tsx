@@ -1,6 +1,7 @@
 import { ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
 import { useEffect, useState, type ChangeEvent } from "react";
 import type { Property } from "../../../features/properties/property-data";
+import { rememberPropertyImages } from "../../../features/properties/property-api";
 import {
   deletePropertyMedia,
   listPropertyMedia,
@@ -29,7 +30,18 @@ export function PropertyPhotoManager({
     setIsLoading(true);
     setError("");
     try {
-      setMedia(await listPropertyMedia(property.id));
+      const nextMedia = await listPropertyMedia(property.id);
+      setMedia(nextMedia);
+      rememberPropertyImages(
+        property.id,
+        nextMedia
+          .filter((item) => item.mimeType.startsWith("image/") && item.url)
+          .sort((a, b) => {
+            if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
+            return a.displayOrder - b.displayOrder;
+          })
+          .map((item) => item.url),
+      );
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load photos.");
     } finally {
