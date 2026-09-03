@@ -7,7 +7,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import { ScheduleViewingModal } from "../components/dashboard/clients/ScheduleViewingModal";
 import { ViewingOutcomeModal } from "../components/dashboard/viewings/ViewingOutcomeModal";
@@ -17,7 +17,10 @@ import {
   saveActivities,
 } from "../features/activities/activity-storage";
 import { loadClients } from "../features/clients/client-storage";
-import { loadProperties } from "../features/properties/property-storage";
+import {
+  listPropertiesFromDatabase,
+} from "../features/properties/property-api";
+import type { Property } from "../features/properties/property-data";
 import {
   VIEWING_STATUSES,
   type Viewing,
@@ -63,8 +66,9 @@ Please let me know if the time still works for you.`;
 }
 
 export function ViewingsPage() {
-  const [properties] = useState(loadProperties);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [clients] = useState(loadClients);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true);
   const [viewings, setViewings] = useState(() => loadViewings(properties));
   const [activities, setActivities] = useState(loadActivities);
   const [filter, setFilter] = useState<ViewingFilter>("Upcoming");
@@ -74,6 +78,33 @@ export function ViewingsPage() {
   const [scheduleClientId, setScheduleClientId] = useState<string | null>(null);
   const [outcomeViewingId, setOutcomeViewingId] = useState<string | null>(null);
   const [storageError, setStorageError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    setIsLoadingProperties(true);
+    void listPropertiesFromDatabase()
+      .then((nextProperties) => {
+        if (!active) return;
+        setProperties(nextProperties);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setStorageError(
+          error instanceof Error
+            ? error.message
+            : "Could not load properties from the database.",
+        );
+        setProperties([]);
+      })
+      .finally(() => {
+        if (active) setIsLoadingProperties(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const clientById = useMemo(
     () => new Map(clients.map((client) => [client.id, client])),
@@ -270,7 +301,7 @@ export function ViewingsPage() {
         <button
           type="button"
           onClick={() => setIsClientPickerOpen(true)}
-          disabled={clients.length === 0}
+          disabled={clients.length === 0 || isLoadingProperties}
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 text-sm font-bold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           <CalendarPlus aria-hidden="true" size={18} />
@@ -528,8 +559,8 @@ export function ViewingsPage() {
                   Choose the client
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  The next screen will order available properties by match
-                  score.
+                  The next screen will use your current database properties
+                  and order available ones by match score.
                 </p>
               </div>
               <button
