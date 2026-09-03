@@ -1,14 +1,8 @@
 import { apiFetch } from "../../lib/api";
 import type { Property } from "./property-data";
-import {
-  listPropertyMedia,
-  uploadPropertyImages,
-} from "./property-media-api";
+import { listPropertyMedia, uploadPropertyImages } from "./property-media-api";
 
 const PROPERTY_STORAGE_KEY = "estateflow-properties";
-
-// The database/media tables are the source of truth. localStorage is only a
-// synchronous compatibility mirror for legacy modules such as Deals.
 
 type BackendProperty = {
   id: string;
@@ -59,9 +53,7 @@ type PropertyMetadata = {
 };
 
 function readMetadata(notes: string | null): PropertyMetadata {
-  if (!notes) {
-    return { version: 1, ownerName: "", ownerPhone: "", features: [] };
-  }
+  if (!notes) return { version: 1, ownerName: "", ownerPhone: "", features: [] };
 
   try {
     const parsed = JSON.parse(notes) as Partial<PropertyMetadata>;
@@ -214,21 +206,18 @@ function readCachedPropertyImages(propertyId: string): string[] {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
 
-    const match = parsed.find(
-      (item): item is { id?: unknown; images?: unknown } =>
-        typeof item === "object" && item !== null,
-    );
     const property = parsed.find(
-      (item) =>
+      (item): item is { id?: unknown; images?: unknown } =>
         typeof item === "object" &&
         item !== null &&
         "id" in item &&
         (item as { id?: unknown }).id === propertyId,
-    ) as { images?: unknown } | undefined;
+    );
 
-    void match;
     return Array.isArray(property?.images)
-      ? property.images.filter((image): image is string => typeof image === "string" && image.length > 0)
+      ? property.images.filter(
+          (image): image is string => typeof image === "string" && image.length > 0,
+        )
       : [];
   } catch {
     return [];
@@ -239,23 +228,20 @@ async function getPropertyImages(propertyId: string): Promise<string[]> {
   const cachedImages = readCachedPropertyImages(propertyId);
 
   try {
-    // Use the same media API used by the photo manager. This guarantees that
-    // reopening Properties gets the persistent DB media rows and fresh signed URLs.
+    // Always rebuild the display URLs from the persistent media records. The
+    // signed URLs are intentionally short-lived and must never be treated as
+    // permanent database values.
     const media = await listPropertyMedia(propertyId);
-    const images = media
+    return media
       .filter((item) => item.mimeType.startsWith("image/") && item.url)
       .sort((a, b) => {
         if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
         return a.displayOrder - b.displayOrder;
       })
       .map((item) => item.url);
-
-    // A successful media query is authoritative, including an empty result
-    // (which means the property really has no media records).
-    return images;
   } catch {
-    // Never destroy a previously working photo just because a transient media
-    // request/signing request failed. The next page load will retry from DB.
+    // A temporary signing/network failure must not make an existing photo
+    // disappear from the UI. Keep the last known image until the next retry.
     return cachedImages;
   }
 }
@@ -268,6 +254,8 @@ async function hydrateProperty(property: BackendProperty): Promise<Property> {
 function cacheDatabaseProperties(properties: readonly Property[]) {
   if (typeof window === "undefined") return;
   try {
+    // Compatibility mirror for synchronous legacy consumers. The DB/media API
+    // remains the source of truth.
     window.localStorage.setItem(PROPERTY_STORAGE_KEY, JSON.stringify(properties));
   } catch {
     // Ignore cache failures; database data is still returned to the caller.
@@ -299,9 +287,8 @@ async function persistEditorImages(propertyId: string, images: readonly string[]
 
   if (files.length === 0) return;
 
-  const media = await listPropertyMedia(propertyId).catch(() => []);
-  const startingOrder = media.length;
-  await uploadPropertyImages(propertyId, files, startingOrder);
+  const existingMedia = await listPropertyMedia(propertyId).catch(() => []);
+  await uploadPropertyImages(propertyId, files, existingMedia.length);
 }
 
 export async function listPropertiesFromDatabase() {
