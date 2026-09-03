@@ -31,7 +31,6 @@ export async function listViewingsFromDatabase() {
 export async function createViewingInDatabase(input: {
   propertyId: string;
   clientId: string;
-  assignedAgentId: string;
   title: string;
   description?: string | null;
   startAt: string;
