@@ -7,12 +7,18 @@ import type {
   CreateViewingInput,
   UpdateViewingInput,
 } from "../validators/viewing.validators.js";
+
+type PersistedCreateViewingInput = CreateViewingInput & {
+  assignedAgentId: string;
+};
+
 export class ViewingScheduleConflictError extends Error {
   constructor() {
     super("Viewing schedule conflict");
     this.name = "ViewingScheduleConflictError";
   }
 }
+
 export interface ViewingRepository {
   validateRelations(
     agencyId: string,
@@ -31,7 +37,7 @@ export interface ViewingRepository {
   create(
     agencyId: string,
     createdById: string,
-    input: CreateViewingInput,
+    input: PersistedCreateViewingInput,
   ): Promise<ViewingRecord>;
   list(
     options: ViewingListOptions,
