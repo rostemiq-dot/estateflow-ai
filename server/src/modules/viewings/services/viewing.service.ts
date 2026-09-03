@@ -28,10 +28,10 @@ export class ViewingService implements ViewingServiceContract {
   constructor(private readonly repository: ViewingRepository, private readonly clock: Clock = () => new Date()) {}
 
   async create(actor: AuthenticatedUser, input: CreateViewingInput) {
-    // The browser knows the Supabase auth user UUID, while the API authenticates
+    // The browser knows the Supabase auth UUID, while the API authenticates
     // that account and maps it to the application's Prisma user UUID. Never use
     // the browser UUID as a foreign key into public.users.
-    const normalizedInput: CreateViewingInput = {
+    const normalizedInput = {
       ...input,
       assignedAgentId: input.assignedAgentId ?? actor.id,
     };
