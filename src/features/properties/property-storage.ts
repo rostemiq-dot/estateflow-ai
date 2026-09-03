@@ -13,6 +13,7 @@ import {
 
 const PROPERTY_STORAGE_KEY = "estateflow-properties";
 const LEGACY_DATE_BASE = Date.parse("2026-07-01T09:00:00.000Z");
+const DEMO_PROPERTY_IDS = new Set(["PROP-001", "PROP-002", "PROP-003", "PROP-004"]);
 
 export type PropertySaveResult =
   | { ok: true }
@@ -88,6 +89,7 @@ export function normalizeProperty(value: unknown, index = 0): Property | null {
 
   return {
     id,
+    referenceCode: getString(value.referenceCode).trim() || undefined,
     title,
     district: getString(value.district, "Erbil").trim(),
     location: getString(value.location, "Erbil, Kurdistan Region").trim(),
@@ -131,27 +133,30 @@ export function normalizeProperty(value: unknown, index = 0): Property | null {
 
 export function loadProperties(): Property[] {
   if (typeof window === "undefined") {
-    return cloneDemoProperties();
+    return [];
   }
 
   try {
     const savedProperties = window.localStorage.getItem(PROPERTY_STORAGE_KEY);
 
     if (savedProperties === null) {
-      return cloneDemoProperties();
+      return [];
     }
 
     const parsedProperties: unknown = JSON.parse(savedProperties);
 
     if (!Array.isArray(parsedProperties)) {
-      return cloneDemoProperties();
+      return [];
     }
 
     return parsedProperties
       .map((property, index) => normalizeProperty(property, index))
-      .filter((property): property is Property => property !== null);
+      .filter(
+        (property): property is Property =>
+          property !== null && !DEMO_PROPERTY_IDS.has(property.id),
+      );
   } catch {
-    return cloneDemoProperties();
+    return [];
   }
 }
 
