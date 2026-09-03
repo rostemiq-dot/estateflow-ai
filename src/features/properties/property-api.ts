@@ -1,5 +1,10 @@
 import { apiFetch } from "../../lib/api";
+import { requireSupabase } from "../../lib/supabase";
 import type { Property } from "./property-data";
+
+const PROPERTY_STORAGE_KEY = "estateflow-properties";
+const PROPERTY_MEDIA_BUCKET = "property-media";
+const MEDIA_URL_TTL_SECONDS = 60 * 60;
 
 type BackendProperty = {
   id: string;
@@ -39,13 +44,8 @@ type BackendProperty = {
   updatedAt: string;
 };
 
-type PropertyListResponse = {
-  data: BackendProperty[];
-};
-
-type PropertyWriteResponse = {
-  data: BackendProperty;
-};
+type PropertyListResponse = { data: BackendProperty[] };
+type PropertyWriteResponse = { data: BackendProperty };
 
 type PropertyMetadata = {
   version: 1;
@@ -53,6 +53,20 @@ type PropertyMetadata = {
   ownerPhone: string;
   features: string[];
 };
+
+type ApiMediaItem = {
+  id: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: string;
+  displayOrder: number;
+  isCover: boolean;
+};
+
+type MediaListResponse = { data: ApiMediaItem[] };
+
+type MediaCreateResponse = { data: ApiMediaItem };
 
 function readMetadata(notes: string | null): PropertyMetadata {
   if (!notes) {
@@ -151,6 +165,7 @@ function fromBackendProperty(property: BackendProperty): Property {
 
   return {
     id: property.id,
+    referenceCode: property.referenceCode,
     title: property.title,
     district: property.district ?? "",
     location: property.address || location,
@@ -180,7 +195,9 @@ function toPayload(property: Property) {
   return {
     title: property.title.trim() || "Untitled property",
     description: property.description?.trim() || null,
-    referenceCode: property.referenceCode?.trim() || property.id.slice(-12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(),
+    referenceCode:
+      property.referenceCode?.trim() ||
+      property.id.slice(-12).replace(/[^A-Za-z0-9]/g, "").toUpperCase(),
     purpose: toPurpose(property),
     propertyType: toPropertyType(property),
     status: toStatus(property),
@@ -198,11 +215,123 @@ function toPayload(property: Property) {
   };
 }
 
+async function getPropertyImages(propertyId: string): Promise<string[]> {
+  try {
+    const response = await apiFetch<MediaListResponse>(
+      `/api/properties/${encodeURIComponent(propertyId)}/media`,
+    );
+    const imageItems = response.data
+      .filter((item) => item.mimeType.startsWith("image/"))
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+
+    if (imageItems.length === 0) return [];
+
+    const supabase = requireSupabase();
+    const urls = await Promise.all(
+      imageItems.map(async (item) => {
+        const { data, error } = await supabase.storage
+          .from(PROPERTY_MEDIA_BUCKET)
+          .createSignedUrl(item.storagePath, MEDIA_URL_TTL_SECONDS);
+        return error || !data?.signedUrl ? "" : data.signedUrl;
+      }),
+    );
+
+    return urls.filter(Boolean);
+  } catch {
+    // Property data should still render if the optional media request fails.
+    return [];
+  }
+}
+
+async function hydrateProperty(property: BackendProperty): Promise<Property> {
+  const mapped = fromBackendProperty(property);
+  return { ...mapped, images: await getPropertyImages(property.id) };
+}
+
+function cacheDatabaseProperties(properties: readonly Property[]) {
+  if (typeof window === "undefined") return;
+  try {
+    // Keep a local mirror only for legacy synchronous modules such as Deals.
+    // The database remains the source of truth; this mirror is refreshed every time
+    // the database property list is loaded.
+    window.localStorage.setItem(PROPERTY_STORAGE_KEY, JSON.stringify(properties));
+  } catch {
+    // Ignore cache failures; database data is still returned to the caller.
+  }
+}
+
+function dataUrlToFile(dataUrl: string, propertyId: string, index: number): File | null {
+  const match = dataUrl.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
+  if (!match) return null;
+
+  try {
+    const mimeType = match[1];
+    const binary = atob(match[2]);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    return new File([bytes], `${propertyId}-${index}.${extension}`, { type: mimeType });
+  } catch {
+    return null;
+  }
+}
+
+async function persistEditorImages(propertyId: string, images: readonly string[]) {
+  const files = images
+    .map((image, index) => dataUrlToFile(image, propertyId, index))
+    .filter((file): file is File => file !== null);
+
+  if (files.length === 0) return;
+
+  const supabase = requireSupabase();
+  const created: ApiMediaItem[] = [];
+
+  for (const [index, file] of files.entries()) {
+    const storagePath = `${propertyId}/${crypto.randomUUID()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from(PROPERTY_MEDIA_BUCKET)
+      .upload(storagePath, file, {
+        cacheControl: "3600",
+        contentType: file.type,
+        upsert: false,
+      });
+    if (uploadError) throw new Error(`Could not upload ${file.name}. ${uploadError.message}`);
+
+    try {
+      const response = await apiFetch<MediaCreateResponse>(
+        `/api/properties/${encodeURIComponent(propertyId)}/media`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            mediaType: "IMAGE",
+            storagePath,
+            thumbnailPath: null,
+            fileName: file.name,
+            mimeType: file.type,
+            fileSize: file.size,
+            displayOrder: index,
+            isCover: index === 0,
+            metadata: null,
+          }),
+        },
+      );
+      created.push(response.data);
+    } catch (error) {
+      await supabase.storage.from(PROPERTY_MEDIA_BUCKET).remove([storagePath]);
+      throw error;
+    }
+  }
+}
+
 export async function listPropertiesFromDatabase() {
   const response = await apiFetch<PropertyListResponse>(
     "/api/properties?page=1&pageSize=100&sortBy=updatedAt&sortOrder=desc",
   );
-  return response.data.map(fromBackendProperty);
+  const properties = await Promise.all(response.data.map(hydrateProperty));
+  cacheDatabaseProperties(properties);
+  return properties;
 }
 
 export async function createPropertyInDatabase(property: Property) {
@@ -210,7 +339,9 @@ export async function createPropertyInDatabase(property: Property) {
     method: "POST",
     body: JSON.stringify(toPayload(property)),
   });
-  return fromBackendProperty(response.data);
+  await persistEditorImages(response.data.id, property.images ?? []);
+  const saved = await hydrateProperty(response.data);
+  return saved;
 }
 
 export async function updatePropertyInDatabase(property: Property) {
@@ -221,7 +352,9 @@ export async function updatePropertyInDatabase(property: Property) {
       body: JSON.stringify(toPayload(property)),
     },
   );
-  return fromBackendProperty(response.data);
+  await persistEditorImages(response.data.id, property.images ?? []);
+  const saved = await hydrateProperty(response.data);
+  return saved;
 }
 
 export async function deletePropertyFromDatabase(propertyId: string) {
