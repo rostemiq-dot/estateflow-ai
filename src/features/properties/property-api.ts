@@ -1,10 +1,14 @@
 import { apiFetch } from "../../lib/api";
-import { requireSupabase } from "../../lib/supabase";
 import type { Property } from "./property-data";
+import {
+  listPropertyMedia,
+  uploadPropertyImages,
+} from "./property-media-api";
 
 const PROPERTY_STORAGE_KEY = "estateflow-properties";
-const PROPERTY_MEDIA_BUCKET = "property-media";
-const MEDIA_URL_TTL_SECONDS = 60 * 60;
+
+// The database/media tables are the source of truth. localStorage is only a
+// synchronous compatibility mirror for legacy modules such as Deals.
 
 type BackendProperty = {
   id: string;
@@ -53,20 +57,6 @@ type PropertyMetadata = {
   ownerPhone: string;
   features: string[];
 };
-
-type ApiMediaItem = {
-  id: string;
-  storagePath: string;
-  fileName: string;
-  mimeType: string;
-  fileSize: string;
-  displayOrder: number;
-  isCover: boolean;
-};
-
-type MediaListResponse = { data: ApiMediaItem[] };
-
-type MediaCreateResponse = { data: ApiMediaItem };
 
 function readMetadata(notes: string | null): PropertyMetadata {
   if (!notes) {
@@ -215,31 +205,58 @@ function toPayload(property: Property) {
   };
 }
 
-async function getPropertyImages(propertyId: string): Promise<string[]> {
+function readCachedPropertyImages(propertyId: string): string[] {
+  if (typeof window === "undefined") return [];
+
   try {
-    const response = await apiFetch<MediaListResponse>(
-      `/api/properties/${encodeURIComponent(propertyId)}/media`,
+    const raw = window.localStorage.getItem(PROPERTY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+
+    const match = parsed.find(
+      (item): item is { id?: unknown; images?: unknown } =>
+        typeof item === "object" && item !== null,
     );
-    const imageItems = response.data
-      .filter((item) => item.mimeType.startsWith("image/"))
-      .sort((a, b) => a.displayOrder - b.displayOrder);
+    const property = parsed.find(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "id" in item &&
+        (item as { id?: unknown }).id === propertyId,
+    ) as { images?: unknown } | undefined;
 
-    if (imageItems.length === 0) return [];
-
-    const supabase = requireSupabase();
-    const urls = await Promise.all(
-      imageItems.map(async (item) => {
-        const { data, error } = await supabase.storage
-          .from(PROPERTY_MEDIA_BUCKET)
-          .createSignedUrl(item.storagePath, MEDIA_URL_TTL_SECONDS);
-        return error || !data?.signedUrl ? "" : data.signedUrl;
-      }),
-    );
-
-    return urls.filter(Boolean);
+    void match;
+    return Array.isArray(property?.images)
+      ? property.images.filter((image): image is string => typeof image === "string" && image.length > 0)
+      : [];
   } catch {
-    // Property data should still render if the optional media request fails.
     return [];
+  }
+}
+
+async function getPropertyImages(propertyId: string): Promise<string[]> {
+  const cachedImages = readCachedPropertyImages(propertyId);
+
+  try {
+    // Use the same media API used by the photo manager. This guarantees that
+    // reopening Properties gets the persistent DB media rows and fresh signed URLs.
+    const media = await listPropertyMedia(propertyId);
+    const images = media
+      .filter((item) => item.mimeType.startsWith("image/") && item.url)
+      .sort((a, b) => {
+        if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
+        return a.displayOrder - b.displayOrder;
+      })
+      .map((item) => item.url);
+
+    // A successful media query is authoritative, including an empty result
+    // (which means the property really has no media records).
+    return images;
+  } catch {
+    // Never destroy a previously working photo just because a transient media
+    // request/signing request failed. The next page load will retry from DB.
+    return cachedImages;
   }
 }
 
@@ -251,9 +268,6 @@ async function hydrateProperty(property: BackendProperty): Promise<Property> {
 function cacheDatabaseProperties(properties: readonly Property[]) {
   if (typeof window === "undefined") return;
   try {
-    // Keep a local mirror only for legacy synchronous modules such as Deals.
-    // The database remains the source of truth; this mirror is refreshed every time
-    // the database property list is loaded.
     window.localStorage.setItem(PROPERTY_STORAGE_KEY, JSON.stringify(properties));
   } catch {
     // Ignore cache failures; database data is still returned to the caller.
@@ -268,8 +282,8 @@ function dataUrlToFile(dataUrl: string, propertyId: string, index: number): File
     const mimeType = match[1];
     const binary = atob(match[2]);
     const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
+    for (let byteIndex = 0; byteIndex < binary.length; byteIndex += 1) {
+      bytes[byteIndex] = binary.charCodeAt(byteIndex);
     }
     const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
     return new File([bytes], `${propertyId}-${index}.${extension}`, { type: mimeType });
@@ -285,44 +299,9 @@ async function persistEditorImages(propertyId: string, images: readonly string[]
 
   if (files.length === 0) return;
 
-  const supabase = requireSupabase();
-  const created: ApiMediaItem[] = [];
-
-  for (const [index, file] of files.entries()) {
-    const storagePath = `${propertyId}/${crypto.randomUUID()}-${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from(PROPERTY_MEDIA_BUCKET)
-      .upload(storagePath, file, {
-        cacheControl: "3600",
-        contentType: file.type,
-        upsert: false,
-      });
-    if (uploadError) throw new Error(`Could not upload ${file.name}. ${uploadError.message}`);
-
-    try {
-      const response = await apiFetch<MediaCreateResponse>(
-        `/api/properties/${encodeURIComponent(propertyId)}/media`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            mediaType: "IMAGE",
-            storagePath,
-            thumbnailPath: null,
-            fileName: file.name,
-            mimeType: file.type,
-            fileSize: file.size,
-            displayOrder: index,
-            isCover: index === 0,
-            metadata: null,
-          }),
-        },
-      );
-      created.push(response.data);
-    } catch (error) {
-      await supabase.storage.from(PROPERTY_MEDIA_BUCKET).remove([storagePath]);
-      throw error;
-    }
-  }
+  const media = await listPropertyMedia(propertyId).catch(() => []);
+  const startingOrder = media.length;
+  await uploadPropertyImages(propertyId, files, startingOrder);
 }
 
 export async function listPropertiesFromDatabase() {
@@ -340,8 +319,7 @@ export async function createPropertyInDatabase(property: Property) {
     body: JSON.stringify(toPayload(property)),
   });
   await persistEditorImages(response.data.id, property.images ?? []);
-  const saved = await hydrateProperty(response.data);
-  return saved;
+  return hydrateProperty(response.data);
 }
 
 export async function updatePropertyInDatabase(property: Property) {
@@ -353,8 +331,7 @@ export async function updatePropertyInDatabase(property: Property) {
     },
   );
   await persistEditorImages(response.data.id, property.images ?? []);
-  const saved = await hydrateProperty(response.data);
-  return saved;
+  return hydrateProperty(response.data);
 }
 
 export async function deletePropertyFromDatabase(propertyId: string) {
