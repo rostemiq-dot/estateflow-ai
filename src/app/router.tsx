@@ -1,9 +1,9 @@
 import { createBrowserRouter } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
 import { PropertiesPage } from "../pages/PropertiesPage";
-import { ClientsPage } from "../pages/ClientsPage";
+import { DatabaseClientsPage } from "../pages/DatabaseClientsPage";
 import { SmartMatchesPage } from "../pages/SmartMatchesPage";
-import { ViewingsPage } from "../pages/ViewingsPage";
+import { DatabaseViewingsPage } from "../pages/DatabaseViewingsPage";
 import { DealsPage } from "../pages/DealsPage";
 import { ContractsPage } from "../pages/ContractsPage";
 import { DocumentsPage } from "../pages/DocumentsPage";
@@ -25,9 +25,9 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <DashboardPage /> },
       { path: "/properties", element: <PropertiesPage /> },
-      { path: "/clients", element: <ClientsPage /> },
+      { path: "/clients", element: <DatabaseClientsPage /> },
       { path: "/matches", element: <SmartMatchesPage /> },
-      { path: "/viewings", element: <ViewingsPage /> },
+      { path: "/viewings", element: <DatabaseViewingsPage /> },
       { path: "/deals", element: <DealsPage /> },
       { path: "/contracts", element: <ContractsPage /> },
       { path: "/documents", element: <DocumentsPage /> },
