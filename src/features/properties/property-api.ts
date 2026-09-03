@@ -224,13 +224,32 @@ function readCachedPropertyImages(propertyId: string): string[] {
   }
 }
 
+export function rememberPropertyImages(propertyId: string, images: readonly string[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const raw = window.localStorage.getItem(PROPERTY_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(parsed)) return;
+
+    const next = parsed.map((item) => {
+      if (typeof item !== "object" || item === null || !("id" in item)) return item;
+      if ((item as { id?: unknown }).id !== propertyId) return item;
+      return { ...(item as Record<string, unknown>), images: [...images] };
+    });
+
+    window.localStorage.setItem(PROPERTY_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Cache is only a compatibility layer; ignore cache failures.
+  }
+}
+
 async function getPropertyImages(propertyId: string): Promise<string[]> {
   const cachedImages = readCachedPropertyImages(propertyId);
 
   try {
-    // Always rebuild the display URLs from the persistent media records. The
-    // signed URLs are intentionally short-lived and must never be treated as
-    // permanent database values.
+    // Always rebuild display URLs from persistent media records. Signed URLs
+    // are short-lived and must never be treated as permanent database values.
     const media = await listPropertyMedia(propertyId);
     return media
       .filter((item) => item.mimeType.startsWith("image/") && item.url)
@@ -254,8 +273,6 @@ async function hydrateProperty(property: BackendProperty): Promise<Property> {
 function cacheDatabaseProperties(properties: readonly Property[]) {
   if (typeof window === "undefined") return;
   try {
-    // Compatibility mirror for synchronous legacy consumers. The DB/media API
-    // remains the source of truth.
     window.localStorage.setItem(PROPERTY_STORAGE_KEY, JSON.stringify(properties));
   } catch {
     // Ignore cache failures; database data is still returned to the caller.
