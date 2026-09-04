@@ -14,6 +14,7 @@ import {
 import { dealRouter } from "./modules/deals/routes/deal.routes.js";
 import { viewingRouter } from "./modules/viewings/routes/viewing.routes.js";
 import { propertyRouter } from "./modules/properties/routes/property.routes.js";
+import { workflowRouter } from "./modules/workflow/workflow.routes.js";
 import {
   amenityRouter,
   mediaRouter,
@@ -35,19 +36,15 @@ export const createApp = () => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow non-browser requests (health checks, curl, server-to-server).
         if (!origin || allowedOrigins.has(origin)) {
           callback(null, true);
           return;
         }
-
         callback(new Error("CORS origin not allowed"));
       },
       credentials: true,
     }),
   );
-  // Keep JSON requests bounded. Property media is stored separately and must
-  // never be sent as base64 through the API.
   app.use(express.json({ limit: "1mb" }));
   app.use(pinoHttp({ logger }));
 
@@ -59,6 +56,7 @@ export const createApp = () => {
   app.use("/api/properties/:propertyId/media", mediaRouter);
   app.use("/api/amenities", amenityRouter);
   app.use("/api/tags", tagRouter);
+  app.use("/api/workflow", workflowRouter);
   app.use("/api/health/database", databaseHealthRouter);
   app.use("/api/health", healthRouter);
   app.use(notFound);
