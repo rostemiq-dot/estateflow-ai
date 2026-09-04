@@ -23,7 +23,10 @@ export function formatMoney(amountMinor: number, currency: "USD" | "IQD") {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
-    maximumFractionDigits: currency === "IQD" ? 0 : 2,
+    // EstateFlow records whole-dollar / whole-dinar amounts. Never show
+    // unnecessary decimal zeros such as "$200.00" or "300,000.00 IQD".
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
   }).format(fromMinorUnits(amountMinor));
 }
 
