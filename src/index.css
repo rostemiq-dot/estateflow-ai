@@ -13,10 +13,13 @@
 
 .estateflow-startup-content { animation: estateflow-fade-in 500ms ease-out both; }
 .estateflow-loading-bar { animation: estateflow-loading-bar 1.2s ease-in-out infinite; }
+.page-enter { animation: estateflow-fade-in 260ms ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
   .estateflow-startup-content,
-  .estateflow-loading-bar { animation: none !important; }
+  .estateflow-loading-bar,
+  .page-enter { animation: none !important; }
+  html { scroll-behavior: auto !important; }
 }
 
 .sidebar-scroll {
