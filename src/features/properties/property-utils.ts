@@ -7,7 +7,10 @@ import type {
 } from "./property-data";
 
 export type PropertySort =
-  "recently-updated" | "highest-price" | "lowest-price" | "newest";
+  | "recently-updated"
+  | "highest-price"
+  | "lowest-price"
+  | "newest";
 
 export type PropertyFilters = {
   search: string;
@@ -200,15 +203,13 @@ export function duplicateProperty(
 }
 
 export function formatPropertyPrice(price: number, currency: PropertyCurrency) {
-  if (currency === "USD") {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(price);
-  }
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    useGrouping: true,
+  }).format(Math.max(0, Number.isFinite(price) ? price : 0));
 
-  return `${new Intl.NumberFormat("en-US").format(price)} IQD`;
+  return currency === "USD" ? `${formatted}$` : `${formatted} IQD`;
 }
 
 export function formatPropertyDate(value: string) {
