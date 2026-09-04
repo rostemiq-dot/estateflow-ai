@@ -9,6 +9,7 @@ import {
   createPropertyId,
   duplicateProperty,
   filterAndSortProperties,
+  formatPropertyPrice,
   getPropertyStats,
   type PropertyFilters,
 } from "./property-utils";
@@ -56,6 +57,12 @@ describe("property foundation", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("formats property prices as simple whole USD and grouped IQD", () => {
+    expect(formatPropertyPrice(200, "USD")).toBe("200$");
+    expect(formatPropertyPrice(300_000, "IQD")).toBe("300,000 IQD");
+    expect(formatPropertyPrice(300_000.99, "IQD")).toBe("300,001 IQD");
   });
 
   it("searches owner phone and combines filters", () => {
