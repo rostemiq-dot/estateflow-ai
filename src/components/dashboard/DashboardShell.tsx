@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import {
   applySettingsTheme,
   loadSettings,
@@ -6,6 +7,7 @@ import {
 } from "../../features/settings/settings-storage";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { OfflineIndicator } from "../ui/OfflineIndicator";
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -13,6 +15,7 @@ type DashboardShellProps = {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const syncWorkspaceSettings = () => {
@@ -45,6 +48,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
     };
   }, [isNavigationOpen]);
 
+  useEffect(() => {
+    setIsNavigationOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen bg-slate-100">
       {isNavigationOpen && (
@@ -61,8 +69,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
       />
       <div className="min-w-0 flex-1">
         <Topbar onOpenNavigation={() => setIsNavigationOpen(true)} />
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main key={location.pathname} className="page-enter p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+      <OfflineIndicator />
     </div>
   );
 }
