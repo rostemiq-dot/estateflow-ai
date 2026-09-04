@@ -189,85 +189,37 @@ export function normalizeDeal(value: unknown): Deal | null {
   };
 }
 
-function createSeedDeals(
+/**
+ * Legacy compatibility only. New production flows must not call this to seed
+ * browser data. It is retained for older callers/tests that explicitly pass
+ * records and need a deterministic empty-safe result.
+ */
+export function createSeedDeals(
   clients: readonly Client[],
   properties: readonly Property[],
-) {
-  const pairs = [
-    { client: clients[0], property: properties[0], stage: "Negotiation" },
-    { client: clients[1], property: properties[1], stage: "Viewing" },
-    { client: clients[2], property: properties[2], stage: "Offer Made" },
-  ] as const;
-  return pairs.flatMap(({ client, property, stage }, index) => {
-    if (!client || !property) return [];
-    const createdAt = new Date(
-      Date.now() - (index + 1) * 86_400_000,
-    ).toISOString();
-    const deal: Deal = {
-      id: `DEAL-100${index + 1}`,
-      title: `${client.name} · ${property.title}`,
-      clientId: client.id,
-      propertyId: property.id,
-      type: property.purpose === "Sale" ? "Sale" : "Rental",
-      stage,
-      expectedValueMinor: toMinorUnits(property.price),
-      currency: property.currency,
-      probability: [65, 40, 80][index],
-      assignedAgent: client.assignedAgent,
-      nextAction: [
-        "Review buyer terms",
-        "Confirm second viewing",
-        "Follow up on offer",
-      ][index],
-      nextActionAt: new Date(Date.now() + (index + 1) * 86_400_000)
-        .toISOString()
-        .slice(0, 16),
-      expectedCloseDate: new Date(Date.now() + (index + 8) * 86_400_000)
-        .toISOString()
-        .slice(0, 10),
-      notes: "Demo deal connected to existing EstateFlow records.",
-      lostReason: "",
-      archived: false,
-      offers: [],
-      commission: {
-        mode: "Percentage",
-        rateBasisPoints: property.purpose === "Sale" ? 250 : 500,
-        fixedAmountMinor: 0,
-        agentShareBasisPoints: 5000,
-        confirmed: false,
-      },
-      payments: [],
-      history: [
-        {
-          id: `HIST-SEED-${index}`,
-          type: "Created",
-          text: `Deal created at ${stage} stage.`,
-          createdAt,
-        },
-      ],
-      createdAt,
-      updatedAt: createdAt,
-    };
-    return [deal];
-  });
+): Deal[] {
+  void clients;
+  void properties;
+  return [];
 }
 
 export function loadDeals(
   clients: readonly Client[] = [],
   properties: readonly Property[] = [],
 ): Deal[] {
-  if (typeof window === "undefined")
-    return createSeedDeals(clients, properties);
+  void clients;
+  void properties;
+  if (typeof window === "undefined") return [];
   try {
     const saved = window.localStorage.getItem(DEAL_STORAGE_KEY);
-    if (saved === null) return createSeedDeals(clients, properties);
+    if (!saved) return [];
     const parsed: unknown = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return createSeedDeals(clients, properties);
+    if (!Array.isArray(parsed)) return [];
     return parsed
       .map(normalizeDeal)
       .filter((deal): deal is Deal => deal !== null);
   } catch {
-    return createSeedDeals(clients, properties);
+    return [];
   }
 }
 
