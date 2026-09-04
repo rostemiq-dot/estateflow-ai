@@ -23,7 +23,6 @@
   scrollbar-width: thin;
   scrollbar-color: rgb(71 85 105) transparent;
 }
-
 .sidebar-scroll::-webkit-scrollbar { width: 6px; }
 .sidebar-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 .sidebar-scroll::-webkit-scrollbar-thumb { border-radius: 999px; background: rgb(71 85 105); }
@@ -34,10 +33,14 @@ html[data-theme="dark"] {
   color-scheme: dark;
   background: #0f172a;
 }
-html[data-theme="dark"] body { background: #0f172a; color: #e2e8f0; }
-html[data-theme="dark"] .bg-slate-100 { background-color: #1e293b; }
+html[data-theme="dark"] body {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+html[data-theme="dark"] .bg-slate-100 { background-color: #0f172a; }
 html[data-theme="dark"] .bg-white { background-color: #1e293b; }
 html[data-theme="dark"] .bg-slate-50 { background-color: #172033; }
+html[data-theme="dark"] .bg-slate-100 { background-color: #1e293b; }
 html[data-theme="dark"] .bg-slate-200 { background-color: #334155; }
 html[data-theme="dark"] .border-slate-200,
 html[data-theme="dark"] .border { border-color: #334155; }
@@ -47,8 +50,15 @@ html[data-theme="dark"] .text-slate-800 { color: #e2e8f0; }
 html[data-theme="dark"] .text-slate-700 { color: #cbd5e1; }
 html[data-theme="dark"] .text-slate-600 { color: #cbd5e1; }
 html[data-theme="dark"] .text-slate-500 { color: #94a3b8; }
-html[data-theme="dark"] .text-slate-400 { color: #94a3b8; }
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
-html[data-theme="dark"] textarea { background-color: #1e293b; color: #f8fafc; border-color: #475569; }
-html[data-theme="dark"] .shadow-sm { box-shadow: 0 1px 3px rgb(0 0 0 / .25); }
+html[data-theme="dark"] textarea {
+  background-color: #0f172a;
+  color: #f8fafc;
+  border-color: #475569;
+}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: #64748b; }
+html[data-theme="dark"] .hover\:bg-slate-50:hover { background-color: #334155; }
+html[data-theme="dark"] .hover\:bg-slate-800:hover { background-color: #334155; }
+html[data-density="compact"] main { --spacing: 0.22rem; }
