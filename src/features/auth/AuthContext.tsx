@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { requireSupabase, supabase } from "../../lib/supabase";
+import { clearApiCache } from "../../lib/api";
 
 type AuthContextValue = {
   user: User | null;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void client.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
       if (error) {
+        clearApiCache();
         setSession(null);
       } else {
         setSession(data.session);
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = client.auth.onAuthStateChange((_event, nextSession) => {
       if (!mounted) return;
+      if (!nextSession) clearApiCache();
       setSession(nextSession);
       setLoading(false);
     });
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: async () => {
       const { error } = await requireSupabase().auth.signOut();
       if (error) throw error;
+      clearApiCache();
       setSession(null);
       setLoading(false);
     },
