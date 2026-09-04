@@ -7,6 +7,7 @@ import {
   canTransitionDeal,
   createCounterOffer,
   derivePaymentStatus,
+  formatMoney,
   getClosedPropertyStatus,
   getPaidAmount,
   getRemainingAmount,
@@ -77,6 +78,11 @@ describe("deal money calculations", () => {
   it("converts decimal money to exact integer minor units", () => {
     expect(toMinorUnits(10.1 + 20.2)).toBe(3030);
     expect(toMinorUnits(-10)).toBe(0);
+  });
+
+  it("formats USD and IQD without unnecessary decimal zeros", () => {
+    expect(formatMoney(20_000, "USD")).toBe("$200");
+    expect(formatMoney(30_000_000, "IQD")).toBe("30,000 IQD");
   });
 
   it("calculates percentage and fixed commissions with agent shares", () => {
