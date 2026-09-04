@@ -1,0 +1,224 @@
+import { BriefcaseBusiness, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { DashboardShell } from "../components/dashboard/DashboardShell";
+import { DatabasePageSkeleton } from "../components/ui/DatabasePageSkeleton";
+import { useToast } from "../components/ui/ToastProvider";
+import { listClientsFromDatabase } from "../features/clients/client-api";
+import { type Client } from "../features/clients/client-data";
+import {
+  changeDealStageInDatabase,
+  createDealInDatabase,
+  deleteDealFromDatabase,
+  listDealsFromDatabase,
+  updateDealInDatabase,
+} from "../features/deals/deal-api";
+import { DEAL_STAGES, type Deal, type DealStage, type DealType } from "../features/deals/deal-data";
+import { listPropertiesFromDatabase } from "../features/properties/property-api";
+import { type Property } from "../features/properties/property-data";
+
+const stages: DealStage[] = DEAL_STAGES;
+const stageStyles: Record<DealStage, string> = {
+  Lead: "bg-sky-50 text-sky-700",
+  Viewing: "bg-violet-50 text-violet-700",
+  Negotiation: "bg-amber-50 text-amber-800",
+  "Offer Made": "bg-orange-50 text-orange-700",
+  Contract: "bg-indigo-50 text-indigo-700",
+  "Closed Won": "bg-emerald-50 text-emerald-700",
+  "Closed Lost": "bg-rose-50 text-rose-700",
+};
+const input = "mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-100";
+
+function money(valueMinor: number, currency: Deal["currency"]) {
+  const amount = Math.round(valueMinor / 100);
+  return currency === "USD" ? `${amount.toLocaleString("en-US")}$` : `${amount.toLocaleString("en-US")} IQD`;
+}
+
+function uuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function DealModal({
+  clients,
+  properties,
+  deal,
+  onClose,
+  onSaved,
+}: {
+  clients: Client[];
+  properties: Property[];
+  deal?: Deal;
+  onClose: () => void;
+  onSaved: (deal: Deal) => void;
+}) {
+  const toast = useToast();
+  const firstClient = clients.find((item) => uuid(item.assignedAgent)) ?? clients[0];
+  const firstProperty = properties[0];
+  const [title, setTitle] = useState(deal?.title ?? "");
+  const [clientId, setClientId] = useState(deal?.clientId ?? firstClient?.id ?? "");
+  const [propertyId, setPropertyId] = useState(deal?.propertyId ?? firstProperty?.id ?? "");
+  const [type, setType] = useState<DealType>(deal?.type ?? "Sale");
+  const [stage, setStage] = useState<DealStage>(deal?.stage ?? "Lead");
+  const selectedProperty = properties.find((item) => item.id === propertyId);
+  const [value, setValue] = useState(String(deal ? deal.expectedValueMinor / 100 : selectedProperty?.price ?? 0));
+  const [currency, setCurrency] = useState<Deal["currency"]>(deal?.currency ?? selectedProperty?.currency ?? "USD");
+  const [closeDate, setCloseDate] = useState(deal?.expectedCloseDate ?? "");
+  const [notes, setNotes] = useState(deal?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function selectProperty(id: string) {
+    setPropertyId(id);
+    const property = properties.find((item) => item.id === id);
+    if (!property || deal) return;
+    setValue(String(property.price));
+    setCurrency(property.currency);
+    setType(property.purpose === "Rent" ? "Rental" : "Sale");
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (saving) return;
+    const client = clients.find((item) => item.id === clientId);
+    if (!title.trim() || !clientId || !propertyId) {
+      setError("Deal title, client, and property are required.");
+      return;
+    }
+    if (!client || !uuid(client.assignedAgent)) {
+      setError("The selected client must have an active assigned agent before creating a deal.");
+      return;
+    }
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      setError("Enter a valid deal value greater than zero.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const saved = deal
+        ? await updateDealInDatabase({ ...deal, title: title.trim(), type, stage, expectedValueMinor: Math.round(numericValue * 100), currency, expectedCloseDate: closeDate, notes: notes.trim(), assignedAgent: client.assignedAgent })
+        : await createDealInDatabase({ title: title.trim(), clientId, propertyId, assignedAgentId: client.assignedAgent, type, stage, value: numericValue, currency, expectedCloseDate: closeDate, notes: notes.trim() });
+      onSaved(saved);
+      toast.success(deal ? "Deal updated successfully." : "Deal created successfully.");
+      onClose();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not save the deal.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm">
+      <form onSubmit={submit} className="mx-auto my-6 max-w-2xl rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div><p className="text-sm font-bold text-amber-700">DEAL RECORD</p><h2 className="mt-1 text-2xl font-bold text-slate-950">{deal ? "Edit deal" : "Create deal"}</h2></div>
+          <button type="button" onClick={onClose} className="grid min-h-11 min-w-11 place-items-center rounded-xl hover:bg-slate-100"><X size={20} /></button>
+        </div>
+        {error && <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="sm:col-span-2 text-sm font-semibold">Deal title<input className={input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Client · property" /></label>
+          <label className="text-sm font-semibold">Client<select className={input} value={clientId} onChange={(e) => setClientId(e.target.value)}>{clients.length === 0 && <option value="">No clients available</option>}{clients.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="text-sm font-semibold">Property<select className={input} value={propertyId} onChange={(e) => selectProperty(e.target.value)}>{properties.length === 0 && <option value="">No properties available</option>}{properties.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.status}</option>)}</select></label>
+          <label className="text-sm font-semibold">Type<select className={input} value={type} onChange={(e) => setType(e.target.value as DealType)}><option>Sale</option><option>Rental</option></select></label>
+          <label className="text-sm font-semibold">Stage<select className={input} value={stage} onChange={(e) => setStage(e.target.value as DealStage)}>{stages.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="text-sm font-semibold">Expected value<div className="flex gap-2"><input className={input} type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} /><select className={`${input} w-28`} value={currency} onChange={(e) => setCurrency(e.target.value as Deal["currency"])}><option>USD</option><option>IQD</option></select></div></label>
+          <label className="text-sm font-semibold">Expected close<input className={input} type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} /></label>
+          <label className="sm:col-span-2 text-sm font-semibold">Notes<textarea className={`${input} min-h-24 py-3`} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+        </div>
+        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} disabled={saving} className="min-h-11 rounded-xl border border-slate-200 px-5 font-bold">Cancel</button><button disabled={saving} className="min-h-11 rounded-xl bg-amber-500 px-5 font-bold text-slate-950 disabled:opacity-60">{saving ? "Saving…" : deal ? "Save changes" : "Create deal"}</button></div>
+      </form>
+    </div>
+  );
+}
+
+export function DatabaseDealsPage() {
+  const toast = useToast();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [stage, setStage] = useState<"All" | DealStage>("All");
+  const [type, setType] = useState<"All" | DealType>("All");
+  const [modal, setModal] = useState<"new" | Deal | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [clientRows, propertyRows, dealRows] = await Promise.all([
+        listClientsFromDatabase(),
+        listPropertiesFromDatabase(),
+        listDealsFromDatabase({ pageSize: 100 }),
+      ]);
+      setClients(clientRows);
+      setProperties(propertyRows);
+      setDeals(dealRows);
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not load deals.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const filtered = useMemo(() => deals.filter((deal) => {
+    const term = search.trim().toLowerCase();
+    const client = clients.find((item) => item.id === deal.clientId);
+    const property = properties.find((item) => item.id === deal.propertyId);
+    return (stage === "All" || deal.stage === stage) && (type === "All" || deal.type === type) && (!term || [deal.title, client?.name ?? "", property?.title ?? ""].some((item) => item.toLowerCase().includes(term)));
+  }), [clients, deals, properties, search, stage, type]);
+
+  async function moveStage(deal: Deal, nextStage: DealStage) {
+    if (nextStage === deal.stage || busyId) return;
+    let lostReason = deal.lostReason;
+    if (nextStage === "Closed Lost") lostReason = window.prompt("Why was this deal lost?")?.trim() ?? "";
+    if (nextStage === "Closed Lost" && !lostReason) return;
+    if ((nextStage === "Closed Won" || nextStage === "Closed Lost") && !window.confirm(`Confirm ${nextStage}?`)) return;
+    setBusyId(deal.id);
+    try {
+      const updated = await changeDealStageInDatabase(deal, nextStage, lostReason);
+      setDeals((current) => current.map((item) => item.id === deal.id ? updated : item));
+      toast.success(`Deal moved to ${nextStage}.`);
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Could not change deal stage.");
+    } finally { setBusyId(null); }
+  }
+
+  async function remove(deal: Deal) {
+    if (busyId || !window.confirm(`Delete ${deal.title}? This cannot be undone.`)) return;
+    setBusyId(deal.id);
+    try {
+      await deleteDealFromDatabase(deal.id);
+      setDeals((current) => current.filter((item) => item.id !== deal.id));
+      toast.success("Deal deleted.");
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Could not delete deal.");
+    } finally { setBusyId(null); }
+  }
+
+  if (loading) return <DashboardShell><DatabasePageSkeleton cards={4} /></DashboardShell>;
+
+  return (
+    <DashboardShell>
+      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div><p className="text-sm font-bold text-amber-700">DEAL PIPELINE · LIVE DATABASE</p><h1 className="mt-2 text-3xl font-bold text-slate-950">Deals</h1><p className="mt-2 max-w-2xl text-slate-600">Manage real client-property transactions from lead through closing.</p></div>
+        <button type="button" disabled={!clients.length || !properties.length} onClick={() => setModal("new")} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 font-bold text-slate-950 disabled:opacity-50"><Plus size={18} /> Create deal</button>
+      </section>
+      {error && <div role="alert" className="mt-5 flex items-center justify-between rounded-xl bg-rose-50 p-4 text-sm font-semibold text-rose-700"><span>{error}</span><button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-rose-100"><RefreshCw size={16} /> Retry</button></div>}
+      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-7">{stages.map((item) => <button key={item} type="button" onClick={() => setStage(stage === item ? "All" : item)} className={`rounded-2xl border p-4 text-left ${stage === item ? "border-amber-400 bg-amber-50 ring-2 ring-amber-200" : "border-slate-200 bg-white"}`}><p className="text-xs font-semibold text-slate-500">{item}</p><p className="mt-2 text-2xl font-bold">{deals.filter((deal) => deal.stage === item).length}</p></button>)}</section>
+      <section className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_180px_180px]"><label className="relative"><Search className="absolute left-4 top-3.5 text-slate-400" size={18} /><input className="min-h-12 w-full rounded-xl border border-slate-200 pl-11 pr-4 text-sm outline-none focus:border-amber-500" placeholder="Search deal, client, or property" value={search} onChange={(e) => setSearch(e.target.value)} /></label><select className="min-h-12 rounded-xl border border-slate-200 px-4 text-sm" value={type} onChange={(e) => setType(e.target.value as "All" | DealType)}><option>All</option><option>Sale</option><option>Rental</option></select><select className="min-h-12 rounded-xl border border-slate-200 px-4 text-sm" value={stage} onChange={(e) => setStage(e.target.value as "All" | DealStage)}><option>All</option>{stages.map((item) => <option key={item}>{item}</option>)}</select></section>
+      <p className="mt-5 text-sm font-semibold text-slate-600">{filtered.length} {filtered.length === 1 ? "deal" : "deals"}</p>
+      {filtered.length === 0 ? <section className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center"><BriefcaseBusiness className="mx-auto text-slate-400" size={36} /><h2 className="mt-4 font-bold text-slate-950">{deals.length ? "No matching deals" : "No deals yet"}</h2><p className="mt-2 text-sm text-slate-500">{deals.length ? "Clear the filters or search for another client or property." : "Create your first deal from a real client and property."}</p></section> : <section className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{filtered.map((deal) => { const client = clients.find((item) => item.id === deal.clientId); const property = properties.find((item) => item.id === deal.propertyId); return <article key={deal.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><span className={`rounded-full px-3 py-1 text-xs font-bold ${stageStyles[deal.stage]}`}>{deal.stage}</span><span className="text-xs font-semibold text-slate-400">{deal.type}</span></div><h2 className="mt-4 text-lg font-bold text-slate-950">{deal.title}</h2><p className="mt-1 text-sm text-slate-500">{client?.name ?? "Client unavailable"} · {property?.title ?? "Property unavailable"}</p><p className="mt-4 text-2xl font-bold text-slate-950">{money(deal.expectedValueMinor, deal.currency)}</p><div className="mt-5 flex flex-wrap gap-2">{stages.map((item) => <button key={item} type="button" disabled={busyId === deal.id || item === deal.stage} onClick={() => void moveStage(deal, item)} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold disabled:opacity-50 ${stageStyles[item]}`}>{item}</button>)}</div><div className="mt-5 flex justify-between border-t border-slate-100 pt-4"><button type="button" disabled={busyId === deal.id} onClick={() => setModal(deal)} className="rounded-xl px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">Edit</button><button type="button" disabled={busyId === deal.id} onClick={() => void remove(deal)} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50">{busyId === deal.id ? "Working…" : <><Trash2 size={16} /> Delete</>}</button></div></article>; })}</section>}
+      {modal && <DealModal clients={clients} properties={properties} deal={modal === "new" ? undefined : modal} onClose={() => setModal(null)} onSaved={(saved) => setDeals((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])} />}
+    </DashboardShell>
+  );
+}
