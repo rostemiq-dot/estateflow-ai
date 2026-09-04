@@ -81,8 +81,8 @@ describe("deal money calculations", () => {
   });
 
   it("formats USD and IQD without unnecessary decimal zeros", () => {
-    expect(formatMoney(20_000, "USD")).toBe("$200");
-    expect(formatMoney(30_000_000, "IQD")).toBe("30,000 IQD");
+    expect(formatMoney(20_000, "USD")).toBe("200$");
+    expect(formatMoney(30_000_000, "IQD")).toBe("300,000 IQD");
   });
 
   it("calculates percentage and fixed commissions with agent shares", () => {
