@@ -4,7 +4,7 @@ import { PropertiesPage } from "../pages/PropertiesPage";
 import { DatabaseClientsPage } from "../pages/DatabaseClientsPage";
 import { SmartMatchesPage } from "../pages/SmartMatchesPage";
 import { DatabaseViewingsPage } from "../pages/DatabaseViewingsPage";
-import { DealsPage } from "../pages/DealsPage";
+import { DatabaseDealsPage } from "../pages/DatabaseDealsPage";
 import { ContractsPage } from "../pages/ContractsPage";
 import { DocumentsPage } from "../pages/DocumentsPage";
 import { TasksPage } from "../pages/TasksPage";
@@ -28,7 +28,7 @@ export const router = createBrowserRouter([
       { path: "/clients", element: <DatabaseClientsPage /> },
       { path: "/matches", element: <SmartMatchesPage /> },
       { path: "/viewings", element: <DatabaseViewingsPage /> },
-      { path: "/deals", element: <DealsPage /> },
+      { path: "/deals", element: <DatabaseDealsPage /> },
       { path: "/contracts", element: <ContractsPage /> },
       { path: "/documents", element: <DocumentsPage /> },
       { path: "/tasks", element: <TasksPage /> },
