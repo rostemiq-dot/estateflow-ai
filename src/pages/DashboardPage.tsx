@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Building2, CalendarDays, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
+import { DashboardSkeleton } from "../components/ui/DatabasePageSkeleton";
 import { listClientsFromDatabase } from "../features/clients/client-api";
 import type { Client } from "../features/clients/client-data";
 import { listPropertiesFromDatabase } from "../features/properties/property-api";
@@ -37,7 +38,7 @@ export function DashboardPage() {
   return <DashboardShell>
     <section><p className="text-sm font-semibold text-amber-700">OVERVIEW · LIVE DATABASE</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Your business at a glance</h1><p className="mt-2 max-w-2xl text-slate-600">The dashboard uses the same authenticated PostgreSQL data on every device. Browser demo records are not used.</p></section>
     {error && <div role="alert" className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
-    {loading ? <div className="mt-8 rounded-2xl border bg-white p-10 text-center font-semibold text-slate-500">Loading live dashboard data…</div> : <>
+    {loading ? <DashboardSkeleton /> : <>
       <section className="mt-8 grid gap-4 sm:grid-cols-3">
         <article className="rounded-2xl border bg-white p-5 shadow-sm"><Building2 className="text-amber-700" size={22}/><p className="mt-4 text-sm text-slate-500">Properties</p><p className="mt-2 text-3xl font-bold">{properties.length}</p><p className="mt-1 text-sm text-slate-500">{activeProperties.length} active listings</p></article>
         <article className="rounded-2xl border bg-white p-5 shadow-sm"><Users className="text-amber-700" size={22}/><p className="mt-4 text-sm text-slate-500">Clients</p><p className="mt-2 text-3xl font-bold">{clients.length}</p><p className="mt-1 text-sm text-slate-500">Real CRM records</p></article>
