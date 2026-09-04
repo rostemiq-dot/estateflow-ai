@@ -5,7 +5,7 @@ import { DatabaseClientsPage } from "../pages/DatabaseClientsPage";
 import { SmartMatchesPage } from "../pages/SmartMatchesPage";
 import { DatabaseViewingsPage } from "../pages/DatabaseViewingsPage";
 import { DatabaseDealsPage } from "../pages/DatabaseDealsPage";
-import { ContractsPage } from "../pages/ContractsPage";
+import { TransactionWorkflowPage } from "../pages/TransactionWorkflowPage";
 import { DocumentsPage } from "../pages/DocumentsPage";
 import { TasksPage } from "../pages/TasksPage";
 import { TeamPage } from "../pages/TeamPage";
@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
       { path: "/matches", element: <SmartMatchesPage /> },
       { path: "/viewings", element: <DatabaseViewingsPage /> },
       { path: "/deals", element: <DatabaseDealsPage /> },
-      { path: "/contracts", element: <ContractsPage /> },
+      { path: "/contracts", element: <TransactionWorkflowPage /> },
       { path: "/documents", element: <DocumentsPage /> },
       { path: "/tasks", element: <TasksPage /> },
       { path: "/team", element: <TeamPage /> },
