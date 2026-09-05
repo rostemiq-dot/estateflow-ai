@@ -32,14 +32,14 @@ type ApiMediaItem = Omit<PropertyMediaItem, "url"> & {
 type MediaListResponse = { data: ApiMediaItem[] };
 type MediaCreateResponse = { data: ApiMediaItem };
 
-async function signedUrl(storagePath: string) {
-  const { data, error } = await requireSupabase().storage
+function publicUrl(storagePath: string) {
+  const { data } = requireSupabase().storage
     .from(PROPERTY_MEDIA_BUCKET)
-    .createSignedUrl(storagePath, 60 * 60);
-  if (error || !data?.signedUrl) {
-    throw new Error("Could not create a secure URL for the property photo.");
+    .getPublicUrl(storagePath);
+  if (!data?.publicUrl) {
+    throw new Error("Could not create a public URL for the property photo.");
   }
-  return data.signedUrl;
+  return data.publicUrl;
 }
 
 export async function listPropertyMedia(propertyId: string): Promise<PropertyMediaItem[]> {
@@ -47,15 +47,12 @@ export async function listPropertyMedia(propertyId: string): Promise<PropertyMed
     `/api/properties/${encodeURIComponent(propertyId)}/media`,
   );
 
-  const media = await Promise.all(
-    response.data.map(async (item) => ({
-      ...item,
-      url: await signedUrl(item.storagePath),
-    })),
-  );
-
-  return media
+  return response.data
     .filter((item) => item.deletedAt === null)
+    .map((item) => ({
+      ...item,
+      url: publicUrl(item.storagePath),
+    }))
     .sort((a, b) => {
       if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
       return a.displayOrder - b.displayOrder;
@@ -120,7 +117,7 @@ export async function uploadPropertyImages(
 
       uploaded.push({
         ...response.data,
-        url: await signedUrl(storagePath),
+        url: publicUrl(storagePath),
       });
     } catch (error) {
       await supabase.storage.from(PROPERTY_MEDIA_BUCKET).remove([storagePath]);
