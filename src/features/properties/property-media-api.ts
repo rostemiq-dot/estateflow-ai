@@ -1,7 +1,7 @@
 import { apiFetch } from "../../lib/api";
 import { requireSupabase } from "../../lib/supabase";
 
-const BUCKET = "property-media";
+export const PROPERTY_MEDIA_BUCKET = "property-media";
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 export type PropertyMediaItem = {
@@ -34,7 +34,7 @@ type MediaCreateResponse = { data: ApiMediaItem };
 
 async function signedUrl(storagePath: string) {
   const { data, error } = await requireSupabase().storage
-    .from(BUCKET)
+    .from(PROPERTY_MEDIA_BUCKET)
     .createSignedUrl(storagePath, 60 * 60);
   if (error || !data?.signedUrl) {
     throw new Error("Could not create a secure URL for the property photo.");
@@ -47,12 +47,19 @@ export async function listPropertyMedia(propertyId: string): Promise<PropertyMed
     `/api/properties/${encodeURIComponent(propertyId)}/media`,
   );
 
-  return Promise.all(
+  const media = await Promise.all(
     response.data.map(async (item) => ({
       ...item,
       url: await signedUrl(item.storagePath),
     })),
   );
+
+  return media
+    .filter((item) => item.deletedAt === null)
+    .sort((a, b) => {
+      if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
+      return a.displayOrder - b.displayOrder;
+    });
 }
 
 export async function uploadPropertyImages(
@@ -64,6 +71,7 @@ export async function uploadPropertyImages(
 
   const supabase = requireSupabase();
   const uploaded: PropertyMediaItem[] = [];
+  const hasExistingMedia = startingOrder > 0;
 
   for (const [index, file] of files.entries()) {
     if (!file.type.startsWith("image/")) {
@@ -73,11 +81,13 @@ export async function uploadPropertyImages(
       throw new Error(`${file.name} is larger than 15 MB.`);
     }
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-");
+    const safeName = file.name
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/-+/g, "-");
     const storagePath = `${propertyId}/${crypto.randomUUID()}-${safeName || "photo"}`;
 
     const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
+      .from(PROPERTY_MEDIA_BUCKET)
       .upload(storagePath, file, {
         cacheControl: "3600",
         contentType: file.type,
@@ -85,7 +95,7 @@ export async function uploadPropertyImages(
       });
 
     if (uploadError) {
-      await supabase.storage.from(BUCKET).remove([storagePath]);
+      await supabase.storage.from(PROPERTY_MEDIA_BUCKET).remove([storagePath]);
       throw new Error(`Could not upload ${file.name}. ${uploadError.message}`);
     }
 
@@ -102,7 +112,7 @@ export async function uploadPropertyImages(
             mimeType: file.type,
             fileSize: file.size,
             displayOrder: startingOrder + index,
-            isCover: startingOrder === 0 && index === 0,
+            isCover: !hasExistingMedia && index === 0,
             metadata: null,
           }),
         },
@@ -113,7 +123,7 @@ export async function uploadPropertyImages(
         url: await signedUrl(storagePath),
       });
     } catch (error) {
-      await supabase.storage.from(BUCKET).remove([storagePath]);
+      await supabase.storage.from(PROPERTY_MEDIA_BUCKET).remove([storagePath]);
       throw error;
     }
   }
@@ -129,7 +139,9 @@ export async function deletePropertyMedia(
     `/api/properties/${encodeURIComponent(propertyId)}/media/${encodeURIComponent(media.id)}`,
     { method: "DELETE" },
   );
-  const { error } = await requireSupabase().storage.from(BUCKET).remove([media.storagePath]);
+  const { error } = await requireSupabase()
+    .storage.from(PROPERTY_MEDIA_BUCKET)
+    .remove([media.storagePath]);
   if (error) {
     throw new Error(`Photo record was removed, but the stored file could not be deleted: ${error.message}`);
   }
