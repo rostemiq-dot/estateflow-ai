@@ -20,6 +20,7 @@ import {
   mediaRouter,
   tagRouter,
 } from "./modules/property-metadata/routes/metadata.routes.js";
+import { publicPropertyRouter } from "./routes/public-properties.routes.js";
 import { databaseHealthRouter } from "./routes/database-health.routes.js";
 import { healthRouter } from "./routes/health.routes.js";
 
@@ -47,6 +48,10 @@ export const createApp = () => {
   );
   app.use(express.json({ limit: "1mb" }));
   app.use(pinoHttp({ logger }));
+
+  // Public, read-only property portal. It intentionally sits outside the
+  // authenticated CRM routes and exposes only AVAILABLE properties.
+  app.use("/api/public/properties", publicPropertyRouter);
 
   app.use("/api/clients", clientRouter);
   app.use("/api/client-tags", clientTagRouter);
