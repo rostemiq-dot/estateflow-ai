@@ -1,4 +1,4 @@
-import { Bath, BedDouble, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, Filter, Heart, Home, MapPin, Maximize2, Moon, Phone, Search, Share2, SlidersHorizontal, Sun, Users, X } from "lucide-react";
+import { Bath, BedDouble, Building2, CalendarDays, Check, ChevronLeft, ChevronRight, Filter, Heart, Home, MapPin, Maximize2, Moon, Search, Share2, SlidersHorizontal, Sun, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { apiFetch } from "../lib/api";
 import { requireSupabase } from "../lib/supabase";
@@ -116,10 +116,7 @@ export function PublicPropertiesPage() {
     try {
       await apiFetch<ViewingRequestResponse>(`/api/public/properties/${selected.id}/viewing-request`, {
         method: "POST",
-        body: JSON.stringify({
-          name: form.name, phone: form.phone, whatsapp: form.whatsapp, preferredDate: form.date, preferredTime: form.time,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", message: form.message, website: form.website,
-        }),
+        body: JSON.stringify({ name: form.name, phone: form.phone, whatsapp: form.whatsapp, preferredDate: form.date, preferredTime: form.time, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", message: form.message, website: form.website }),
       });
       setRequestSent(true); setRequestError("");
       setForm({ name: "", phone: "", whatsapp: "", date: "", time: "", message: "", website: "" });
