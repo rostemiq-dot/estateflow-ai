@@ -15,9 +15,11 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { HelpPage } from "../pages/HelpPage";
 import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
+import { PublicPropertiesPage } from "../pages/PublicPropertiesPage";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 
 export const router = createBrowserRouter([
+  { path: "/properties-public", element: <PublicPropertiesPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
   {
