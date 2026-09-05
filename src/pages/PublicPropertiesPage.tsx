@@ -83,15 +83,8 @@ function orderedMedia(media: PublicMedia[]) {
 
 async function signPaths(paths: string[]) {
   if (!paths.length) return new Map<string, string>();
-  try {
-    const { data, error } = await requireSupabase().storage
-      .from(BUCKET)
-      .createSignedUrls(paths, SIGNED_URL_TTL);
-    if (error || !data) return new Map<string, string>();
-    return new Map(paths.map((path, index) => [path, data[index]?.signedUrl ?? ""]));
-  } catch {
-    return new Map<string, string>();
-  }
+  const supabase = requireSupabase();
+  return new Map(paths.map((path) => [path, supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl]));
 }
 
 export function PublicPropertiesPage() {
@@ -114,6 +107,7 @@ export function PublicPropertiesPage() {
   const [requestSent, setRequestSent] = useState(false);
   const [requestLoading, setRequestLoading] = useState(false);
   const [requestError, setRequestError] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState("");
   const [whatsappUrl, setWhatsappUrl] = useState("");
   const [form, setForm] = useState({
     name: "",
@@ -302,8 +296,24 @@ export function PublicPropertiesPage() {
       ].filter(Boolean).join("\n");
       const nextWhatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
       setWhatsappUrl(nextWhatsappUrl);
+      const whatsappMessage = [
+        "Hello Mohammed, I would like to request a property viewing.",
+        `Property: ${selected.title}`,
+        `Reference: ${selected.referenceCode}`,
+        `Price: ${formatPrice(selected.price, selected.currency)}`,
+        `Location: ${locationLabel(selected) || selected.country}`,
+        `Name: ${form.name}`,
+        `Phone: ${form.phone}`,
+        `WhatsApp: ${form.whatsapp || form.phone}`,
+        `Preferred date: ${form.date}`,
+        `Preferred time: ${form.time}`,
+        form.message ? `Message: ${form.message}` : "",
+      ].filter(Boolean).join("\n");
+      const nextWhatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
+      setWhatsappUrl(nextWhatsappUrl);
       setRequestSent(true);
       setForm({ name: "", phone: "", whatsapp: "", date: "", time: "", message: "", website: "" });
+      window.setTimeout(() => window.open(nextWhatsappUrl, "_blank", "noopener,noreferrer"), 0);
       window.setTimeout(() => window.open(nextWhatsappUrl, "_blank", "noopener,noreferrer"), 0);
     } catch (reason) {
       setRequestError(reason instanceof Error ? reason.message : "We could not send your request. Please try again.");
