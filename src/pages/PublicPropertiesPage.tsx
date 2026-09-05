@@ -24,7 +24,7 @@ import { apiFetch } from "../lib/api";
 import { requireSupabase } from "../lib/supabase";
 
 const BUCKET = "property-media";
-const SIGNED_URL_TTL = 60 * 60;
+const WHATSAPP_NUMBER = "9647503975384";
 
 type PublicMedia = {
   id: string;
@@ -114,6 +114,7 @@ export function PublicPropertiesPage() {
   const [requestSent, setRequestSent] = useState(false);
   const [requestLoading, setRequestLoading] = useState(false);
   const [requestError, setRequestError] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState("");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -171,11 +172,16 @@ export function PublicPropertiesPage() {
 
   useEffect(() => {
     if (!selected) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeProperty();
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [selected]);
 
   const propertyTypes = useMemo(
@@ -281,8 +287,24 @@ export function PublicPropertiesPage() {
           website: form.website,
         }),
       });
+      const whatsappMessage = [
+        "Hello Mohammed, I would like to request a property viewing.",
+        `Property: ${selected.title}`,
+        `Reference: ${selected.referenceCode}`,
+        `Price: ${formatPrice(selected.price, selected.currency)}`,
+        `Location: ${locationLabel(selected) || selected.country}`,
+        `Name: ${form.name}`,
+        `Phone: ${form.phone}`,
+        `WhatsApp: ${form.whatsapp || form.phone}`,
+        `Preferred date: ${form.date}`,
+        `Preferred time: ${form.time}`,
+        form.message ? `Message: ${form.message}` : "",
+      ].filter(Boolean).join("\n");
+      const nextWhatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
+      setWhatsappUrl(nextWhatsappUrl);
       setRequestSent(true);
       setForm({ name: "", phone: "", whatsapp: "", date: "", time: "", message: "", website: "" });
+      window.setTimeout(() => window.open(nextWhatsappUrl, "_blank", "noopener,noreferrer"), 0);
     } catch (reason) {
       setRequestError(reason instanceof Error ? reason.message : "We could not send your request. Please try again.");
     } finally {
@@ -350,13 +372,13 @@ export function PublicPropertiesPage() {
 
       <footer className={`border-t ${isDark ? "border-slate-800 bg-slate-950" : "border-slate-200 bg-white"}`}><div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8"><div><p className="font-black">EstateFlow</p><p className={`text-sm ${muted}`}>Real properties. Clear information. Better decisions.</p></div><p className={`text-xs ${muted}`}>Public property portal · No account required</p></div></footer>
 
-      {selected && <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 p-3 backdrop-blur-sm sm:p-6" onClick={closeProperty} role="dialog" aria-modal="true" aria-label={selected.title}>
+      {selected && <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-slate-950/80 p-3 backdrop-blur-sm sm:p-6" onClick={closeProperty} role="dialog" aria-modal="true" aria-label={selected.title}>
         <article className={`mx-auto max-w-6xl overflow-hidden rounded-3xl shadow-2xl ${isDark ? "bg-slate-900 text-slate-100" : "bg-white text-slate-950"}`} onClick={(event) => event.stopPropagation()}>
           <div className={`flex items-center justify-between border-b px-5 py-4 sm:px-7 ${isDark ? "border-slate-800" : "border-slate-200"}`}><div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-600">{selected.referenceCode} · {selected.propertyType}</p><h2 className="truncate text-xl font-black sm:text-2xl">{selected.title}</h2></div><button type="button" onClick={closeProperty} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><X size={21} /></button></div>
           <div className="grid lg:grid-cols-[1.2fr_.8fr]">
             <div className="bg-slate-950 p-3 sm:p-5"><div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-900">{currentImage ? <img src={currentImage} alt={selected.title} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-sm font-bold text-slate-500">{galleryLoading ? "Loading photos…" : "No photo available"}</div>}{gallery.length > 1 && <><button type="button" onClick={() => setGalleryIndex((index) => (index - 1 + gallery.length) % gallery.length)} className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900"><ChevronLeft size={20} /></button><button type="button" onClick={() => setGalleryIndex((index) => (index + 1) % gallery.length)} className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900"><ChevronRight size={20} /></button></>}</div>{gallery.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{gallery.map((image, index) => <button key={image.id} type="button" onClick={() => setGalleryIndex(index)} className={`relative h-16 w-20 shrink-0 overflow-hidden rounded-lg ${index === galleryIndex ? "ring-2 ring-amber-400" : "opacity-70"}`}><img src={image.url} alt="" className="h-full w-full object-cover" />{image.isCover && <span className="absolute bottom-1 left-1 rounded bg-slate-950/80 px-1.5 py-0.5 text-[8px] font-black text-white">Cover</span>}</button>)}</div>}</div>
 
-            <div className="max-h-[78vh] overflow-y-auto p-6 sm:p-8">
+            <div className="max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain p-6 sm:p-8">
               <div className="flex items-start justify-between gap-4"><div><p className="text-3xl font-black">{formatPrice(selected.price, selected.currency)}</p><p className={`mt-2 flex items-start gap-2 text-sm leading-6 ${muted}`}><MapPin size={17} className="mt-0.5 shrink-0" />{selected.address || locationLabel(selected) || selected.country}</p></div><div className="flex gap-2"><button type="button" onClick={() => void shareProperty(selected)} className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200"><Share2 size={18} /></button><button type="button" onClick={() => toggleFavorite(selected.id)} className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200"><Heart size={19} fill={favorites.has(selected.id) ? "currentColor" : "none"} /></button></div></div>
               <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3"><div className={`rounded-2xl p-3 ${soft}`}><p className={`flex items-center gap-1.5 text-xs font-bold ${muted}`}><BedDouble size={14} />Bedrooms</p><p className="mt-1.5 font-black">{selected.bedrooms ?? "—"}</p></div><div className={`rounded-2xl p-3 ${soft}`}><p className={`flex items-center gap-1.5 text-xs font-bold ${muted}`}><Bath size={14} />Bathrooms</p><p className="mt-1.5 font-black">{selected.bathrooms ?? "—"}</p></div><div className={`rounded-2xl p-3 ${soft}`}><p className={`flex items-center gap-1.5 text-xs font-bold ${muted}`}><Maximize2 size={14} />Area</p><p className="mt-1.5 font-black">{selected.areaSqm ? `${selected.areaSqm} m²` : "—"}</p></div><div className={`rounded-2xl p-3 ${soft}`}><p className={`flex items-center gap-1.5 text-xs font-bold ${muted}`}><Building2 size={14} />Floor</p><p className="mt-1.5 font-black">{selected.floor ?? "—"}</p></div><div className={`rounded-2xl p-3 ${soft}`}><p className={`flex items-center gap-1.5 text-xs font-bold ${muted}`}><Home size={14} />Parking</p><p className="mt-1.5 font-black">{selected.parkingSpaces ?? "—"}</p></div><div className={`rounded-2xl p-3 ${soft}`}><p className={`flex items-center gap-1.5 text-xs font-bold ${muted}`}><CalendarDays size={14} />Built</p><p className="mt-1.5 font-black">{selected.yearBuilt ?? "—"}</p></div></div>
               {selected.furnished && <p className="mt-4 flex items-center gap-2 text-sm font-bold text-emerald-600"><Check size={17} /> Furnished</p>}
@@ -364,7 +386,7 @@ export function PublicPropertiesPage() {
 
               {!showViewingForm && !requestSent && <div className={`mt-7 rounded-2xl border p-5 ${isDark ? "border-amber-900/60 bg-amber-950/20" : "border-amber-200 bg-amber-50"}`}><p className="font-black">Interested in this property?</p><p className={`mt-1 text-sm leading-6 ${muted}`}>Choose a preferred date and time and our team will contact you to confirm a private viewing.</p><button type="button" onClick={() => setShowViewingForm(true)} className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-black text-white"><CalendarDays size={17} /> Request a private viewing</button></div>}
 
-              {requestSent && <div className="mt-7 rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={24} /></div><p className="mt-4 text-lg font-black text-emerald-900">Viewing request sent successfully</p><p className="mt-2 text-sm leading-6 text-emerald-800">Thank you. Our team has received your request and will contact you shortly to confirm the appointment.</p></div>}
+              {requestSent && <div className="mt-7 rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-center"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={24} /></div><p className="mt-4 text-lg font-black text-emerald-900">Viewing request sent successfully</p><p className="mt-2 text-sm leading-6 text-emerald-800">Your request is saved. WhatsApp is ready with the property and viewing details so you can send them directly to our team.</p><a href={whatsappUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-black text-white shadow-sm hover:brightness-95"><span className="text-lg">◉</span> Send details to WhatsApp</a></div>}
 
               {showViewingForm && !requestSent && <form onSubmit={submitViewingRequest} className={`mt-7 rounded-2xl border p-5 ${isDark ? "border-slate-700 bg-slate-800/60" : "border-slate-200 bg-slate-50"}`}>
                 <div className="flex items-start justify-between gap-4"><div><p className="font-black">Request a private viewing</p><p className={`mt-1 text-xs ${muted}`}>No account needed. We only use your contact details to arrange the viewing.</p></div><button type="button" onClick={() => setShowViewingForm(false)} className={muted}><X size={18} /></button></div>
