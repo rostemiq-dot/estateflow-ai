@@ -19,15 +19,25 @@ export function fromMinorUnits(value: number) {
   return Math.max(0, Math.trunc(value)) / 100;
 }
 
-export function formatMoney(amountMinor: number, currency: "USD" | "IQD") {
-  const amount = fromMinorUnits(amountMinor);
+// Shared formatter for any already-major-unit amount (e.g. dollars/dinars, not cents).
+export function formatCurrencyAmount(
+  amount: number | string,
+  currency: "USD" | "IQD",
+) {
+  const numeric = Number(amount);
+  const safeAmount = Number.isFinite(numeric) ? numeric : 0;
+  const hasFraction = Math.round(safeAmount * 100) % 100 !== 0;
   const formatted = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
+    maximumFractionDigits: hasFraction ? 2 : 0,
+    minimumFractionDigits: hasFraction ? 2 : 0,
     useGrouping: true,
-  }).format(amount);
+  }).format(safeAmount);
 
   return currency === "USD" ? `${formatted}$` : `${formatted} IQD`;
+}
+
+export function formatMoney(amountMinor: number, currency: "USD" | "IQD") {
+  return formatCurrencyAmount(fromMinorUnits(amountMinor), currency);
 }
 
 export function calculateCommission(
