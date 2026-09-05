@@ -193,7 +193,7 @@ workflowRouter.put("/commissions/:dealId", all, async (req, res, next) => {
     const row = await prisma.$queryRaw<Array<Record<string, unknown>>>`
       insert into public.commissions (agency_id, deal_id, contract_id, mode, rate, fixed_amount, agent_share_rate, calculated_amount, confirmed, created_by_id)
       select ${user.agencyId}::uuid, d.id, c.id, ${mode}, ${rate}, ${fixedAmount}, ${agentShareRate},
-        case when ${mode}='PERCENTAGE' then coalesce(d.agreed_amount,d.offer_amount,d.asking_price,0)*${rate}/100 else ${fixedAmount} end,
+        case when ${mode}='PERCENTAGE' then coalesce(c.agreed_amount,d.agreed_amount,d.offer_amount,d.asking_price,0)*${rate}/100 else ${fixedAmount} end,
         false, ${user.id}::uuid
       from public.deals d left join public.contracts c on c.deal_id=d.id and c.deleted_at is null
       where d.id=${dealId}::uuid and d.agency_id=${user.agencyId}::uuid and d.deleted_at is null
@@ -201,6 +201,23 @@ workflowRouter.put("/commissions/:dealId", all, async (req, res, next) => {
       returning id, deal_id as "dealId", contract_id as "contractId", mode, rate::text as rate, fixed_amount::text as "fixedAmount", agent_share_rate::text as "agentShareRate", calculated_amount::text as "calculatedAmount", confirmed
     `;
     if (!row[0]) throw new AppError("Deal not found", 404);
+    res.json({ data: row[0] });
+  } catch (error) { next(error); }
+});
+
+workflowRouter.patch("/commissions/:commissionId/confirm", all, async (req, res, next) => {
+  try {
+    const user = auth(req);
+    const commissionId = uuid(req.params.commissionId);
+    const row = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+      update public.commissions set
+        confirmed = true,
+        confirmed_at = coalesce(confirmed_at, now()),
+        updated_at = now()
+      where id=${commissionId}::uuid and agency_id=${user.agencyId}::uuid
+      returning id, deal_id as "dealId", contract_id as "contractId", mode, rate::text as rate, fixed_amount::text as "fixedAmount", agent_share_rate::text as "agentShareRate", calculated_amount::text as "calculatedAmount", confirmed, confirmed_at as "confirmedAt"
+    `;
+    if (!row[0]) throw new AppError("Commission not found", 404);
     res.json({ data: row[0] });
   } catch (error) { next(error); }
 });
