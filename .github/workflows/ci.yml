@@ -19,6 +19,9 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://estateflow:ci-password@localhost:5432/estateflow_ci
+      DIRECT_URL: postgresql://estateflow:ci-password@localhost:5432/estateflow_ci
 
     steps:
       - name: Check out repository
