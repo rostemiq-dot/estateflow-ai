@@ -1,5 +1,5 @@
 import { Bell, CheckCheck, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   deleteNotificationFromDatabase,
