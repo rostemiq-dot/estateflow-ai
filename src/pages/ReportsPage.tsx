@@ -1,5 +1,5 @@
 import { BarChart3, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
 import { DatabasePageSkeleton } from "../components/ui/DatabasePageSkeleton";
 import { useToast } from "../components/ui/ToastProvider";
