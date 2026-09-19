@@ -81,7 +81,7 @@ export class TaskService implements TaskServiceContract {
     if (input.assignedUserId !== undefined && !isManager(actor)) {
       throw new AppError("Only managers may reassign tasks", 403);
     }
-    if ([TaskStatus.COMPLETED, TaskStatus.CANCELLED].includes(current.status) && input.status !== undefined && input.status !== current.status) {
+    if ((current.status === TaskStatus.COMPLETED || current.status === TaskStatus.CANCELLED) && input.status !== undefined && input.status !== current.status) {
       throw new AppError("Completed or cancelled tasks are terminal and cannot be reopened", 409);
     }
 
