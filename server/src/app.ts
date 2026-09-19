@@ -15,6 +15,7 @@ import { dealRouter } from "./modules/deals/routes/deal.routes.js";
 import { viewingRouter } from "./modules/viewings/routes/viewing.routes.js";
 import { propertyRouter } from "./modules/properties/routes/property.routes.js";
 import { workflowRouter } from "./modules/workflow/workflow.routes.js";
+import { taskRouter } from "./modules/tasks/routes/task.routes.js";
 import {
   amenityRouter,
   mediaRouter,
@@ -62,6 +63,7 @@ export const createApp = () => {
   app.use("/api/amenities", amenityRouter);
   app.use("/api/tags", tagRouter);
   app.use("/api/workflow", workflowRouter);
+  app.use("/api/tasks", taskRouter);
   app.use("/api/health/database", databaseHealthRouter);
   app.use("/api/health", healthRouter);
   app.use(notFound);
