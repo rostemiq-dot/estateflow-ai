@@ -1,189 +1,109 @@
-import { Play, ToggleLeft, ToggleRight } from "lucide-react";
-import { useState } from "react";
+import { Bot, CheckCircle2, Play, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { DashboardShell } from "../components/dashboard/DashboardShell";
-import { loadClients } from "../features/clients/client-storage";
-import { loadContracts } from "../features/contracts/contract-storage";
-import { loadDeals } from "../features/deals/deal-storage";
-import { loadProperties } from "../features/properties/property-storage";
-import {
-  loadAutomationRules,
-  saveAutomationRules,
-} from "../features/automation/automation-storage";
-import { generateAutomatedTasks } from "../features/tasks/task-automation";
-import { loadTasks, saveTasks } from "../features/tasks/task-storage";
-import { loadViewings } from "../features/viewings/viewing-storage";
+import { DatabasePageSkeleton } from "../components/ui/DatabasePageSkeleton";
+import { useToast } from "../components/ui/ToastProvider";
+import { listDealsFromDatabase } from "../features/deals/deal-api";
+import { listViewingsFromDatabase } from "../features/viewings/viewing-api";
+import { listTasksFromDatabase, createTaskInDatabase } from "../features/tasks/task-api";
+import { listWorkflowContracts, listWorkflowPayments } from "../features/workflow/workflow-api";
+
+type Rule = { id: string; name: string; description: string; enabled: boolean };
+
+const defaultRules: Rule[] = [
+  { id: "viewing-follow-up", name: "Viewing preparation", description: "Create a task before upcoming scheduled/confirmed viewings.", enabled: true },
+  { id: "payment-follow-up", name: "Payment collection", description: "Create a task for pending payment schedules that are due soon.", enabled: true },
+  { id: "contract-signing", name: "Contract signing", description: "Create a task for contracts that are ready to sign.", enabled: true },
+];
+
 export function AutomationPage() {
-  const [rules, setRules] = useState(loadAutomationRules),
-    [message, setMessage] = useState("");
-  const persist = (next: typeof rules) => {
-    saveAutomationRules(next);
-    setRules(next);
-  };
-  const run = () => {
-    const properties = loadProperties(),
-      clients = loadClients(),
-      deals = loadDeals(clients, properties),
-      contracts = loadContracts(),
-      before = loadTasks(),
-      viewings = loadViewings(properties);
-    const evaluated = generateAutomatedTasks(
-      before,
-      viewings,
-      deals,
-      contracts,
-      clients,
-      properties,
-    );
-    const ruleForKey = (key = "") =>
-      rules.find((rule) =>
-        key.startsWith("viewing:")
-          ? rule.id === "viewing-reminder"
-          : key.startsWith("offer:")
-            ? rule.id === "offer-expiration"
-            : key.startsWith("accepted:")
-              ? rule.id === "accepted-offer"
-              : key.startsWith("payment:")
-                ? rule.id === "payment-due"
-                : key.startsWith("sign:")
-                  ? rule.id === "contract-signing"
-                  : false,
-      );
-    const generated = evaluated.slice(before.length).flatMap((task) => {
-      const rule = ruleForKey(task.automationKey);
-      if (rule && !rule.enabled) return [];
-      if (!rule) return [task];
-      const defaultLead =
-        rule.id === "viewing-reminder" && rule.leadUnit === "hours" ? 24 : 1;
-      const unitMs = rule.leadUnit === "hours" ? 3_600_000 : 86_400_000;
-      const adjusted = new Date(task.dueAt);
-      adjusted.setTime(
-        adjusted.getTime() + (defaultLead - rule.leadTime) * unitMs,
-      );
-      return [{ ...task, dueAt: adjusted.toISOString().slice(0, 16) }];
-    });
-    const next = [...before, ...generated];
-    saveTasks(next);
-    const created = next.length - before.length,
-      now = new Date().toISOString();
-    persist(
-      rules.map((r) => ({
-        ...r,
-        lastEvaluatedAt: now,
-        createdCount: r.createdCount + Math.max(0, created),
-        history: [
-          {
-            id: `AUTO-${now}-${r.id}`,
-            text: `Checks ran; ${created} new task records created across enabled rules.`,
-            createdAt: now,
-          },
-          ...r.history,
-        ].slice(0, 5),
-      })),
-    );
-    setMessage(`Checks complete. ${Math.max(0, created)} new tasks created.`);
-  };
+  const toast = useToast();
+  const [rules, setRules] = useState<Rule[]>(() => {
+    try { const raw = window.localStorage.getItem("estateflow-automation-rules"); return raw ? JSON.parse(raw) as Rule[] : defaultRules; } catch { return defaultRules; }
+  });
+  const [running, setRunning] = useState(false);
+  const [lastRun, setLastRun] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    try { window.localStorage.setItem("estateflow-automation-rules", JSON.stringify(rules)); } catch { /* local preferences only */ }
+  }, [rules]);
+
+  useEffect(() => { setLoading(false); }, []);
+
+  async function run() {
+    if (running) return;
+    setRunning(true);
+    try {
+      const [viewings, deals, contracts, payments, tasks] = await Promise.all([
+        listViewingsFromDatabase(),
+        listDealsFromDatabase({ pageSize: 100 }),
+        listWorkflowContracts(),
+        listWorkflowPayments(),
+        listTasksFromDatabase(),
+      ]);
+      const existingTitles = new Set(tasks.map((task) => task.title));
+      let created = 0;
+
+      if (rules.find((rule) => rule.id === "viewing-follow-up")?.enabled) {
+        for (const viewing of viewings.filter((item) => ["SCHEDULED", "CONFIRMED"].includes(item.status))) {
+          const title = `Prepare for viewing · ${viewing.title}`;
+          if (existingTitles.has(title)) continue;
+          await createTaskInDatabase({ title, description: "Automatically created from a live viewing.", dueAt: new Date(new Date(viewing.startAt).getTime() - 24 * 60 * 60 * 1000).toISOString(), priority: "HIGH", clientId: viewing.clientId, propertyId: viewing.propertyId, dealId: viewing.dealId, viewingId: viewing.id });
+          existingTitles.add(title); created++;
+        }
+      }
+
+      if (rules.find((rule) => rule.id === "payment-follow-up")?.enabled) {
+        for (const payment of payments.filter((item) => ["PENDING", "PARTIALLY_PAID", "OVERDUE"].includes(item.status))) {
+          const title = `Collect payment · ${payment.label}`;
+          if (existingTitles.has(title)) continue;
+          const due = new Date(`${payment.dueDate}T09:00:00`);
+          await createTaskInDatabase({ title, description: "Automatically created from a live payment schedule.", dueAt: due.toISOString(), priority: "HIGH", dealId: payment.dealId, propertyId: deals.find((deal) => deal.id === payment.dealId)?.propertyId, clientId: deals.find((deal) => deal.id === payment.dealId)?.clientId });
+          existingTitles.add(title); created++;
+        }
+      }
+
+      if (rules.find((rule) => rule.id === "contract-signing")?.enabled) {
+        for (const contract of contracts.filter((item) => item.status === "READY_TO_SIGN")) {
+          const title = `Arrange contract signing · ${contract.contractNumber}`;
+          if (existingTitles.has(title)) continue;
+          const deal = deals.find((item) => item.id === contract.dealId);
+          await createTaskInDatabase({ title, description: "Automatically created from a live contract.", dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), priority: "HIGH", dealId: contract.dealId, clientId: deal?.clientId, propertyId: deal?.propertyId });
+          existingTitles.add(title); created++;
+        }
+      }
+
+      setLastRun(new Date().toLocaleString());
+      toast.success(created ? `${created} database task${created === 1 ? "" : "s"} created.` : "Automation checked live data; no new tasks were needed.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Automation could not run.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  if (loading) return <DashboardShell><DatabasePageSkeleton cards={3} /></DashboardShell>;
+
   return (
     <DashboardShell>
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-bold text-amber-700">LOCAL WORKFLOWS</p>
-          <h1 className="mt-2 text-3xl font-bold">Automation Center</h1>
-          <p className="mt-2 max-w-3xl text-slate-600">
-            Rules run while EstateFlow is open or when you run checks. This is
-            not a cloud background service and sends no email or WhatsApp
-            messages.
-          </p>
-        </div>
-        <button
-          onClick={run}
-          className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-amber-500 px-5 font-bold"
-        >
-          <Play size={17} /> Run checks now
-        </button>
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div><p className="text-sm font-semibold text-amber-700">WORKFLOW AUTOMATION · DATABASE</p><h1 className="mt-2 text-3xl font-bold text-slate-950">Automation</h1><p className="mt-2 max-w-3xl text-slate-600">Automation rules are lightweight local preferences, but every generated task is created through the real authenticated database API.</p></div>
+        <button disabled={running} type="button" onClick={() => void run()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 font-bold text-white disabled:opacity-50"><Play size={17}/>{running ? "Running..." : "Run automation"}</button>
       </section>
-      {message && (
-        <p
-          role="status"
-          className="mt-5 rounded-xl bg-emerald-50 p-4 font-semibold text-emerald-700"
-        >
-          {message}
-        </p>
-      )}
-      <section className="mt-6 grid gap-4 lg:grid-cols-2">
+
+      {lastRun && <div className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 size={16}/> Last run: {lastRun}</div>}
+
+      <section className="mt-8 grid gap-4">
         {rules.map((rule) => (
-          <article key={rule.id} className="rounded-2xl border bg-white p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-bold">{rule.name}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  {rule.description}
-                </p>
-              </div>
-              <button
-                onClick={() =>
-                  persist(
-                    rules.map((r) =>
-                      r.id === rule.id ? { ...r, enabled: !r.enabled } : r,
-                    ),
-                  )
-                }
-                aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}
-                className="min-h-11"
-              >
-                {rule.enabled ? (
-                  <ToggleRight className="text-emerald-600" size={34} />
-                ) : (
-                  <ToggleLeft className="text-slate-400" size={34} />
-                )}
-              </button>
-            </div>
-            <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-slate-400">Trigger</dt>
-                <dd className="font-semibold">{rule.trigger}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Action</dt>
-                <dd className="font-semibold">{rule.action}</dd>
-              </div>
-            </dl>
-            <label className="mt-4 block text-sm font-bold">
-              Lead time{" "}
-              <input
-                type="number"
-                min="0"
-                value={rule.leadTime}
-                onChange={(e) =>
-                  persist(
-                    rules.map((r) =>
-                      r.id === rule.id
-                        ? {
-                            ...r,
-                            leadTime: Math.max(0, Number(e.target.value)),
-                          }
-                        : r,
-                    ),
-                  )
-                }
-                className="ml-2 h-10 w-20 rounded-lg border px-2"
-              />{" "}
-              {rule.leadUnit}
-            </label>
-            <p className="mt-3 text-xs text-slate-500">
-              Last evaluated:{" "}
-              {rule.lastEvaluatedAt
-                ? rule.lastEvaluatedAt.slice(0, 16).replace("T", " ")
-                : "Not yet"}{" "}
-              · Records created: {rule.createdCount}
-            </p>
-            {rule.history.slice(0, 2).map((h) => (
-              <p key={h.id} className="mt-2 text-xs text-slate-500">
-                {h.text}
-              </p>
-            ))}
+          <article key={rule.id} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700"><Bot size={20}/></div><div><h2 className="font-bold text-slate-950">{rule.name}</h2><p className="mt-1 text-sm text-slate-500">{rule.description}</p></div></div>
+            <button type="button" onClick={() => setRules((current) => current.map((item) => item.id === rule.id ? { ...item, enabled: !item.enabled } : item))} className={`min-h-10 rounded-xl px-4 text-sm font-bold ${rule.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{rule.enabled ? "Enabled" : "Disabled"}</button>
           </article>
         ))}
       </section>
+
+      <div className="mt-6 flex items-center gap-2 text-xs text-slate-500"><RefreshCw size={14}/> Automation reads live viewings, deals, contracts, payments and tasks before creating anything.</div>
     </DashboardShell>
   );
 }
