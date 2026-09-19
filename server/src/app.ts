@@ -16,6 +16,7 @@ import { viewingRouter } from "./modules/viewings/routes/viewing.routes.js";
 import { propertyRouter } from "./modules/properties/routes/property.routes.js";
 import { workflowRouter } from "./modules/workflow/workflow.routes.js";
 import { taskRouter } from "./modules/tasks/routes/task.routes.js";
+import { notificationRouter } from "./modules/notifications/routes/notification.routes.js";
 import {
   amenityRouter,
   mediaRouter,
@@ -64,6 +65,7 @@ export const createApp = () => {
   app.use("/api/tags", tagRouter);
   app.use("/api/workflow", workflowRouter);
   app.use("/api/tasks", taskRouter);
+  app.use("/api/notifications", notificationRouter);
   app.use("/api/health/database", databaseHealthRouter);
   app.use("/api/health", healthRouter);
   app.use(notFound);
