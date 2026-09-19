@@ -1,6 +1,8 @@
 import { prisma } from "../../../lib/prisma.js";
 import type { NotificationRepository } from "./notification.repository.js";
 
+type NotificationCreateData = Parameters<typeof prisma.notification.create>[0]["data"];
+
 export class PrismaNotificationRepository implements NotificationRepository {
   list(agencyId: string, recipientId: string, includeAgency: boolean) {
     return prisma.notification.findMany({
@@ -16,7 +18,7 @@ export class PrismaNotificationRepository implements NotificationRepository {
     });
   }
 
-  create(data: Prisma.NotificationUncheckedCreateInput) {
+  create(data: NotificationCreateData) {
     return prisma.notification.create({ data });
   }
 
