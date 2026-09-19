@@ -57,9 +57,12 @@ export function ReportsPage() {
     if (!data) return null;
     const won = data.deals.filter((deal) => deal.stage === "Closed Won");
     const pipeline = data.deals.filter((deal) => !["Closed Won", "Closed Lost"].includes(deal.stage));
-    const commissionTotal = data.commissions.reduce((sum, item) => sum + Number(item.calculatedAmount || 0), 0);
-    const scheduledPayments = data.payments.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-    const paidPayments = data.payments.reduce((sum, item) => sum + item.payments.reduce((inner, payment) => inner + Number(payment.amount || 0), 0), 0);
+    const paymentTotals = (currency: "USD" | "IQD") => ({
+      scheduled: data.payments.filter((item) => item.currency === currency).reduce((sum, item) => sum + Number(item.amount || 0), 0),
+      paid: data.payments.filter((item) => item.currency === currency).reduce((sum, item) => sum + item.payments.reduce((inner, payment) => inner + Number(payment.amount || 0), 0), 0),
+    });
+    const usd = paymentTotals("USD");
+    const iqd = paymentTotals("IQD");
     return {
       properties: data.properties.length,
       clients: data.clients.length,
@@ -67,9 +70,9 @@ export function ReportsPage() {
       openTasks: data.tasks.filter((item) => item.status === "TODO" || item.status === "IN_PROGRESS").length,
       wonDeals: won.length,
       pipelineValue: pipeline.reduce((sum, deal) => sum + deal.expectedValueMinor / 100, 0),
-      commissionTotal,
-      scheduledPayments,
-      paidPayments,
+      commissionCount: data.commissions.length,
+      usd,
+      iqd,
       contracts: data.contracts.length,
     };
   }, [data]);
@@ -89,11 +92,11 @@ export function ReportsPage() {
       <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Won deals</p><p className="mt-2 text-2xl font-bold">{metrics.wonDeals}</p></div>
         <div className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Open pipeline</p><p className="mt-2 text-2xl font-bold">{money(metrics.pipelineValue)}</p></div>
-        <div className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Commissions</p><p className="mt-2 text-2xl font-bold">{money(metrics.commissionTotal)}</p></div>
+        <div className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Commissions</p><p className="mt-2 text-2xl font-bold">{metrics.commissionCount}</p></div>
         <div className="rounded-2xl border bg-white p-5"><p className="text-sm text-slate-500">Contracts</p><p className="mt-2 text-2xl font-bold">{metrics.contracts}</p></div>
       </section>
       <section className="mt-8 grid gap-5 lg:grid-cols-2">
-        <article className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><BarChart3 className="text-amber-600"/><h2 className="text-lg font-bold">Payment health</h2></div><div className="mt-6 space-y-4"><div className="flex justify-between text-sm"><span className="text-slate-500">Scheduled</span><strong>{money(metrics.scheduledPayments)}</strong></div><div className="flex justify-between text-sm"><span className="text-slate-500">Recorded paid</span><strong>{money(metrics.paidPayments)}</strong></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, metrics.scheduledPayments ? (metrics.paidPayments / metrics.scheduledPayments) * 100 : 0)}%` }}/></div></div></article>
+        <article className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><BarChart3 className="text-amber-600"/><h2 className="text-lg font-bold">Payment health</h2></div><div className="mt-6 space-y-5"><div><div className="flex justify-between text-sm"><span className="text-slate-500">USD scheduled / paid</span><strong>{money(metrics.usd.scheduled)} / {money(metrics.usd.paid)}</strong></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, metrics.usd.scheduled ? (metrics.usd.paid / metrics.usd.scheduled) * 100 : 0)}%` }}/></div></div></div><div><div className="flex justify-between text-sm"><span className="text-slate-500">IQD scheduled / paid</span><strong>{new Intl.NumberFormat("en-US").format(metrics.iqd.scheduled)} / {new Intl.NumberFormat("en-US").format(metrics.iqd.paid)} IQD</strong></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, metrics.iqd.scheduled ? (metrics.iqd.paid / metrics.iqd.scheduled) * 100 : 0)}%` }}/></div></div></div></div></article>
         <article className="rounded-2xl border bg-white p-6 shadow-sm"><h2 className="text-lg font-bold">Data source status</h2><div className="mt-5 space-y-3 text-sm"><p className="rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-800">✓ Properties, clients, viewings, deals and tasks: database-backed</p><p className="rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-800">✓ Offers, contracts, commissions and payments: database-backed</p><p className="rounded-xl bg-slate-50 p-3 font-semibold text-slate-700">Reports no longer read legacy deal/contract/task localStorage.</p></div></article>
       </section></>}
     </DashboardShell>
