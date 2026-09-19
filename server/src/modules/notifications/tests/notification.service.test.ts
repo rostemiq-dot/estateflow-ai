@@ -33,6 +33,7 @@ function repository(overrides: Partial<NotificationRepository> = {}): Notificati
     list: vi.fn(async () => [notification]),
     findById: vi.fn(async () => notification),
     create: vi.fn(async (data) => ({ ...notification, ...data })),
+    validateRelations: vi.fn(async () => ({ recipient: true, client: true, property: true, deal: true, viewing: true, task: true })),
     markRead: vi.fn(async () => 1),
     softDelete: vi.fn(async () => true),
     ...overrides,
