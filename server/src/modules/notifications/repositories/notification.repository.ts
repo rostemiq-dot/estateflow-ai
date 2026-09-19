@@ -1,4 +1,5 @@
-import type { Notification, Prisma } from "@prisma/client";
+import type { Notification } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 export interface NotificationRepository {
   list(agencyId: string, recipientId: string, includeAgency: boolean): Promise<Notification[]>;
