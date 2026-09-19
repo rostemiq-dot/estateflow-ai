@@ -22,6 +22,10 @@ export class NotificationService implements NotificationServiceContract {
     if (actor.role === UserRole.AGENT && input.recipientId !== actor.id) {
       throw new AppError("Agents may only create notifications for themselves", 403);
     }
+    const relations = await this.repository.validateRelations(actor.agencyId, input);
+    if (!relations.recipient || !relations.client || !relations.property || !relations.deal || !relations.viewing || !relations.task) {
+      throw new AppError("One or more notification records are unavailable", 400);
+    }
     return this.repository.create({
       agencyId: actor.agencyId,
       recipientId: input.recipientId,
