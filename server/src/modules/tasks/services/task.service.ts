@@ -1,2 +1,126 @@
-import { TaskStatus,UserRole } from "@prisma/client"; import { AppError } from "../../../errors/app-error.js"; import type { AuthenticatedUser } from "../../auth/types/auth.types.js"; import type { TaskRepository } from "../repositories/task.repository.js";
-export class TaskService { constructor(private r:TaskRepository){} private agent(a:AuthenticatedUser){return a.role===UserRole.AGENT?a.id:undefined} private async valid(a:string,v:any,u?:string){if(!(await this.r.validate(a,v,u)))throw new AppError("Referenced record is unavailable",400)} async create(a:AuthenticatedUser,v:any){if(a.role===UserRole.AGENT&&v.assignedUserId!==a.id)throw new AppError("Agents may only assign tasks to themselves",403);await this.valid(a.agencyId,v,v.assignedUserId);return this.r.create(a.agencyId,a.id,v)} async list(a:AuthenticatedUser,q:any){if(a.role===UserRole.AGENT&&q.assignedUserId&&q.assignedUserId!==a.id)throw new AppError("Insufficient permissions",403);const x=await this.r.list({...q,agencyId:a.agencyId,permittedAgentId:this.agent(a)});return{data:x.records,pagination:{page:q.page,pageSize:q.pageSize,total:x.total,totalPages:Math.ceil(x.total/q.pageSize)}}} async get(a:AuthenticatedUser,id:string){const x=await this.r.find(a.agencyId,id,this.agent(a));if(!x)throw new AppError("Task not found",404);return x} async update(a:AuthenticatedUser,id:string,v:any){await this.get(a,id);await this.valid(a.agencyId,v);const x=await this.r.update(a.agencyId,id,v,this.agent(a));if(!x)throw new AppError("Task not found",404);return x} async assign(a:AuthenticatedUser,id:string,u:string){if(a.role===UserRole.AGENT)throw new AppError("Insufficient permissions",403);await this.get(a,id);await this.valid(a.agencyId,{},u);const x=await this.r.assign(a.agencyId,id,u);if(!x)throw new AppError("Task not found",404);return x} async status(a:AuthenticatedUser,id:string,s:TaskStatus){const x=await this.get(a,id);if([TaskStatus.COMPLETED,TaskStatus.CANCELLED].includes(x.status)&&x.status!==s)throw new AppError("Task is terminal",409);return this.r.status(a.agencyId,id,s,s===TaskStatus.COMPLETED?new Date():null,this.agent(a))} async remove(a:AuthenticatedUser,id:string){if(a.role===UserRole.AGENT)throw new AppError("Insufficient permissions",403);if(!(await this.r.remove(a.agencyId,id,new Date())))throw new AppError("Task not found",404)} }
+import { TaskStatus, UserRole, type Task, Prisma } from "@prisma/client";
+import { AppError } from "../../../errors/app-error.js";
+import type { AuthenticatedUser } from "../../auth/types/auth.types.js";
+import type { TaskRepository } from "../repositories/task.repository.js";
+import type { CreateTaskInput, ListTasksQuery, UpdateTaskInput } from "../validators/task.validators.js";
+
+export interface TaskServiceContract {
+  create(actor: AuthenticatedUser, input: CreateTaskInput): Promise<Task>;
+  list(actor: AuthenticatedUser, query: ListTasksQuery): Promise<{ data: Task[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }>;
+  get(actor: AuthenticatedUser, id: string): Promise<Task>;
+  update(actor: AuthenticatedUser, id: string, input: UpdateTaskInput): Promise<Task>;
+  remove(actor: AuthenticatedUser, id: string): Promise<void>;
+}
+
+const permittedUser = (actor: AuthenticatedUser) => actor.role === UserRole.AGENT ? actor.id : undefined;
+const isManager = (actor: AuthenticatedUser) => actor.role !== UserRole.AGENT;
+const notFound = () => new AppError("Task not found", 404);
+
+export class TaskService implements TaskServiceContract {
+  constructor(private readonly repository: TaskRepository) {}
+
+  async create(actor: AuthenticatedUser, input: CreateTaskInput) {
+    const assignedUserId = input.assignedUserId ?? actor.id;
+    if (!isManager(actor) && assignedUserId !== actor.id) {
+      throw new AppError("Agents may only assign tasks to themselves", 403);
+    }
+
+    const relations = await this.repository.validateRelations(actor.agencyId, {
+      assignedUserId,
+      createdById: actor.id,
+      clientId: input.clientId ?? null,
+      propertyId: input.propertyId ?? null,
+      dealId: input.dealId ?? null,
+      viewingId: input.viewingId ?? null,
+    });
+    if (!relations.assignedUser || !relations.creator || !relations.client || !relations.property || !relations.deal || !relations.viewing) {
+      throw new AppError("One or more linked records are unavailable", 400);
+    }
+
+    const now = new Date();
+    return this.repository.create({
+      agencyId: actor.agencyId,
+      assignedUserId,
+      createdById: actor.id,
+      clientId: input.clientId ?? null,
+      propertyId: input.propertyId ?? null,
+      dealId: input.dealId ?? null,
+      viewingId: input.viewingId ?? null,
+      title: input.title,
+      description: input.description ?? null,
+      status: input.status,
+      priority: input.priority,
+      dueAt: input.dueAt ? new Date(input.dueAt) : null,
+      completedAt: input.status === TaskStatus.COMPLETED ? now : null,
+    });
+  }
+
+  async list(actor: AuthenticatedUser, query: ListTasksQuery) {
+    if (actor.role === UserRole.AGENT && query.assignedUserId && query.assignedUserId !== actor.id) {
+      throw new AppError("Insufficient permissions", 403);
+    }
+    const result = await this.repository.list({
+      ...query,
+      agencyId: actor.agencyId,
+      ...(actor.role === UserRole.AGENT ? { assignedUserId: actor.id } : {}),
+    });
+    return {
+      data: result.records,
+      pagination: { page: query.page, pageSize: query.pageSize, total: result.total, totalPages: Math.ceil(result.total / query.pageSize) },
+    };
+  }
+
+  async get(actor: AuthenticatedUser, id: string) {
+    const task = await this.repository.findById(actor.agencyId, id, permittedUser(actor));
+    if (!task) throw notFound();
+    return task;
+  }
+
+  async update(actor: AuthenticatedUser, id: string, input: UpdateTaskInput) {
+    const current = await this.get(actor, id);
+    if (input.assignedUserId !== undefined && !isManager(actor)) {
+      throw new AppError("Only managers may reassign tasks", 403);
+    }
+    if ([TaskStatus.COMPLETED, TaskStatus.CANCELLED].includes(current.status) && input.status !== undefined && input.status !== current.status) {
+      throw new AppError("Completed or cancelled tasks are terminal and cannot be reopened", 409);
+    }
+
+    const assignedUserId = input.assignedUserId ?? current.assignedUserId;
+    const merged = {
+      assignedUserId,
+      createdById: current.createdById,
+      clientId: input.clientId === undefined ? current.clientId : input.clientId,
+      propertyId: input.propertyId === undefined ? current.propertyId : input.propertyId,
+      dealId: input.dealId === undefined ? current.dealId : input.dealId,
+      viewingId: input.viewingId === undefined ? current.viewingId : input.viewingId,
+    };
+    const relations = await this.repository.validateRelations(actor.agencyId, merged);
+    if (!relations.assignedUser || !relations.creator || !relations.client || !relations.property || !relations.deal || !relations.viewing) {
+      throw new AppError("One or more linked records are unavailable", 400);
+    }
+
+    const status = input.status ?? current.status;
+    const data: Prisma.TaskUpdateManyMutationInput = {
+      ...(input.assignedUserId !== undefined ? { assignedUserId } : {}),
+      ...(input.clientId !== undefined ? { clientId: input.clientId } : {}),
+      ...(input.propertyId !== undefined ? { propertyId: input.propertyId } : {}),
+      ...(input.dealId !== undefined ? { dealId: input.dealId } : {}),
+      ...(input.viewingId !== undefined ? { viewingId: input.viewingId } : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.dueAt !== undefined ? { dueAt: input.dueAt ? new Date(input.dueAt) : null } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(status === TaskStatus.COMPLETED ? { completedAt: current.completedAt ?? new Date() } : current.status === TaskStatus.COMPLETED ? { completedAt: null } : {}),
+    };
+
+    const updated = await this.repository.update(actor.agencyId, id, data, permittedUser(actor));
+    if (!updated) throw notFound();
+    return updated;
+  }
+
+  async remove(actor: AuthenticatedUser, id: string) {
+    if (!isManager(actor)) throw new AppError("Only managers may delete tasks", 403);
+    if (!(await this.repository.softDelete(actor.agencyId, id))) throw notFound();
+  }
+}
